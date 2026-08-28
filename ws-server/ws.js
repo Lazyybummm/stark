@@ -1,0 +1,122 @@
+import ws, { WebSocketServer } from "ws";
+import jwt from "jsonwebtoken";
+import 'dotenv/config';
+import pgclient from "../database/dbconnect.js";
+
+const wss = new WebSocketServer({ port: 8080 });
+
+const mappings = new Map();
+const phonelookups = new Map();
+
+function onlineCheck(receiver_phone) {
+    const value = mappings.get(receiver_phone);
+    if (value) {
+        return 'delivered';
+    } else {
+        return 'sent';
+    }
+}
+
+wss.on("connection", async (socket) => {
+    socket.send("connected");
+
+    socket.on("close", async () => {
+        const phone_number = phonelookups.get(socket);
+        const sock = mappings.get(phone_number);
+        phonelookups.delete(sock);
+        mappings.delete(phone_number);
+        await pgclient.query(
+            `UPDATE users SET is_online = false, last_seen = NOW() 
+             WHERE phone_number = $1`,
+            [phone_number]
+        );
+    });
+
+    socket.on("message", async (data) => {
+        const payload = JSON.parse(data.toString('utf8'));
+        const topic = payload.event;
+        if (topic == "auth") {
+            try {
+                const info = jwt.verify(payload.data, process.env.JWT_SECRET_KEY);
+                mappings.set(info.phone, socket);
+                phonelookups.set(socket, info.phone);
+
+            } catch (e) {
+                socket.send(JSON.stringify({
+                    message: "please login again"
+                }));
+                socket.close();
+            }
+        } else if (topic == "chat") {
+            const sender_phone = payload.data.sender_phonenum;
+            const rec_phone = payload.data.reciever_phonenum;
+            const status = onlineCheck(rec_phone);
+            const response = await pgclient.query(
+                `SELECT * FROM conversations 
+                 WHERE (user1_phone = $1 AND user2_phone = $2)
+                    OR (user1_phone = $2 AND user2_phone = $1)`,
+                [rec_phone, sender_phone]
+            );
+
+            let conversationId;
+
+            if (response.rowCount != 0) {
+                conversationId = response.rows[0].id;
+                const recipientSocket = mappings.get(rec_phone);
+                recipientSocket.send(JSON.stringify({
+                    content: payload.data.content,
+                    sender_phone: sender_phone,
+                    reciever_phone: rec_phone,
+                    timestamp: Date.now()
+                }))
+                await pgclient.query(
+                    `INSERT INTO messages (conversation_id, sender_phone, receiver_phone, content, status) 
+                     VALUES ($1, $2, $3, $4, $5) 
+                     RETURNING id, sender_phone, receiver_phone, content, created_at`,
+                    [conversationId, sender_phone, rec_phone, payload.data.content, status]
+                );
+            } else {
+
+                socket.send(JSON.stringify({
+                    content: payload.data.content,
+                    sender_phone: sender_phone,
+                    reciever_phone: rec_phone,
+                    timestamp: Date.now()
+                }))
+
+                const newConvo = await pgclient.query(
+                    `INSERT INTO conversations (user1_phone, user2_phone, last_message_at) 
+                     VALUES ($1, $2, NOW()) 
+                     RETURNING id`,
+                    [sender_phone, rec_phone]
+                );
+                conversationId = newConvo.rows[0].id;
+
+                const messageResult = await pgclient.query(
+                    `INSERT INTO messages (conversation_id, sender_phone, receiver_phone, content, status) 
+                     VALUES ($1, $2, $3, $4, $5) 
+                     RETURNING id, conversation_id, sender_phone, receiver_phone, content, created_at`,
+                    [conversationId, sender_phone, rec_phone, payload.data.content, status]
+                );
+
+            }
+
+        } else if (topic == 'typing') {
+
+            const rec_phone = payload.data.reciever_phonenum;
+            const recipientSocket = mappings.get(rec_phone);
+            if (!recipientSocket) {
+                //do nothing 
+            }
+            recipientSocket.send(JSON.stringify({
+                event: "typing",
+                sender_phone: payload.data.sender_phone
+            }))
+        } else if (topic == 'seen') {
+            //first send the status of which messaeg is seen to th reciever 
+            //store it in the db 
+        }
+    });
+});
+
+console.log("WebSocket server running on ws://localhost:8080");

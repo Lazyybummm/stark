@@ -1,0 +1,111 @@
+import express from "express"
+import pg, { Client } from "pg"
+import jwt from "jsonwebtoken"
+import bcrypt from "bcrypt"
+import cors from "cors"
+import 'dotenv/config'
+import pgclient from "../database/dbconnect.js"
+const app=express();
+app.use(express.json());
+app.use(cors());
+
+
+
+app.get("/health",(req,res)=>{
+    res.send("the backend is up and healthy")
+    pgclient.query("")
+})
+
+app.post('/query', async (req, res) => {
+    try {
+        console.log("The route is hit");
+        
+        // ✅ First, drop the table if it exists (to avoid conflicts)
+        await pgclient.query(`DROP TABLE IF EXISTS users;`);
+        
+        // ✅ Then create the table with all columns
+        const query_response = await pgclient.query(`
+            CREATE TABLE users (
+                id SERIAL PRIMARY KEY,
+                phone_number VARCHAR(15) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        
+        return res.json({
+            success: true,
+            rowCount: query_response.rowCount
+        });
+    } catch (error) {
+        console.error('Error:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+//authentication routes 
+
+app.post("/signup",async (req,res)=>{
+    try{
+    const {phone,password,name}=req.body;
+    const hashedpass=await bcrypt.hash(password,5)
+    const response=await pgclient.query(
+        "INSERT INTO users (phone_number, password_hash, name) VALUES ($1, $2, $3)",
+        [phone, hashedpass, name]
+    );
+    if(response.rowCount!=0){
+        console.log("entry created")
+        return res.json({
+            message:"entry created"
+        })
+    }
+    }
+    catch(e){
+        return res.status(500).json({
+            message:"error occured",
+            error:e
+        })
+    }
+    
+})
+
+app.post("/login",async (req,res)=>{//revise about jwt and bcrypt
+    try{
+    const {phone,password}=req.body;
+    const response=await pgclient.query("SELECT * FROM users WHERE phone_number =$1",[phone])
+    if(response.rowCount!=0){
+        const compare=await bcrypt.compare(password,response.rows[0].password_hash)
+        if(compare){
+            const token=jwt.sign({
+                name:response.rows[0].name,
+                phone:response.rows[0].phone_number,
+                user_id:response.rows[0].id  
+            },process.env.JWT_SECRET_KEY)
+            return res.json({
+                token:token
+            })
+        }
+        else{
+            return res.send("password is wrong");
+        }
+    }
+    else{
+        return res.send("entry does'nt exists")
+    }
+    }catch(e){
+        console.log(e);
+        return res.json({
+            message:"error occured"
+        })
+    }
+
+})
+
+
+
+
+app.listen(8000);
