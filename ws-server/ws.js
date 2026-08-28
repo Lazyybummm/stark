@@ -43,13 +43,16 @@ wss.on("connection", async (socket) => {
 
             } catch (e) {
                 socket.send(JSON.stringify({
-                    message: "please login again"
+                    message: "please login again",
+                    event:"auth"
+
                 }));
                 socket.close();
             }
         } else if (topic == "chat") {
             const sender_phone = payload.data.sender_phonenum;
             const rec_phone = payload.data.reciever_phonenum;
+            const tempid=payload.data.tempid;
             const status = onlineCheck(rec_phone);
             const response = await pgclient.query(
                 `SELECT * FROM conversations 
@@ -63,20 +66,33 @@ wss.on("connection", async (socket) => {
             if (response.rowCount != 0) {//conversation exists 
                 conversationId = response.rows[0].id;
                 const recipientSocket = mappings.get(rec_phone);
-                recipientSocket.send(JSON.stringify({
-                    content: payload.data.content,
-                    sender_phone: sender_phone,
-                    reciever_phone: rec_phone,
-                    timestamp: Date.now()
-                }))
-                await pgclient.query(
+                const messageresult=await pgclient.query(//whenever i do insert , i get the entry i just added as a return value 
                     `INSERT INTO messages (conversation_id, sender_phone, receiver_phone, content, status) 
                      VALUES ($1, $2, $3, $4, $5) 
                      RETURNING id, sender_phone, receiver_phone, content, created_at`,
                     [conversationId, sender_phone, rec_phone, payload.data.content, status]
                 );
-            } else {
+                if(recipientSocket){
 
+                    recipientSocket.send(JSON.stringify({
+                        content: messageresult.rows[0],
+                        event:"chat"
+                    }))
+
+                    socket.send(JSON.stringify({
+                        correctid:messageresult.rows[0].id,
+                        tempid:tempid,
+                        status:"delivered"
+                    }))
+                }
+                else{
+                    socket.send(JSON.stringify({
+                        correctid:messageresult.rows[0].id,
+                        tempid:tempid,
+                        status:"sent"
+                    }))
+                }
+            } else {
                 const newConvo = await pgclient.query(
                     `INSERT INTO conversations (user1_phone, user2_phone, last_message_at) 
                      VALUES ($1, $2, NOW()) 
@@ -91,14 +107,27 @@ wss.on("connection", async (socket) => {
                      RETURNING id, conversation_id, sender_phone, receiver_phone, content, created_at`,
                     [conversationId, sender_phone, rec_phone, payload.data.content, status]
                 );
-
-                socket.send(JSON.stringify({
-                    content: payload.data.content,
-                    sender_phone: sender_phone,
-                    reciever_phone: rec_phone,
-                    timestamp: Date.now()
+                const recipientSocket=mappings.get(rec_phone);
+                if(recipientSocket){
+                    
+                recipientSocket.send(JSON.stringify({
+                    messageResult:messageResult.rows[0],
+                    event:"chat"
                 }))
 
+                socket.send(JSON.stringify({
+                    tempid:tempid,
+                    correctid:messageResult.rows[0].id,
+                    status:"delivered"
+                }))
+            }
+            else{
+                socket.send(JSON.stringify({
+                    tempid:tempid,
+                    correctid:messageResult.rows[0].id,
+                    status:"sent"
+                }))
+            }
             }
 
         } else if (topic == 'typing') {//this logic would work for only the case of two  users , not for a group 
@@ -109,10 +138,22 @@ wss.on("connection", async (socket) => {
                 //do nothing 
             }
             recipientSocket.send(JSON.stringify({
-                event: "typing",
-                sender_phone: payload.data.sender_phone
+                sender_phone: payload.data.sender_phone,
+                event:"typing"
             }))
+
+            
         } else if (topic == 'seen') {
+            const messageId=payload.data.messageId//recieved from the client 
+            const rec_phone=payload.data.rec_phone;
+            const recipientSocket=mappings.get(rec_phone);
+             await pgclient.query("UPDATE messages WHERE ")
+             recipientSocket.send(JSON.stringify({
+                messageId:messageId,
+                event:"seen"
+             }))
+
+            //recieve the conversation id and message id 
             //first send the status of which messaeg is seen to th reciever 
             //store it in the db 
         }
