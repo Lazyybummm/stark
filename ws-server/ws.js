@@ -60,7 +60,7 @@ wss.on("connection", async (socket) => {
 
             let conversationId;
 
-            if (response.rowCount != 0) {
+            if (response.rowCount != 0) {//conversation exists 
                 conversationId = response.rows[0].id;
                 const recipientSocket = mappings.get(rec_phone);
                 recipientSocket.send(JSON.stringify({
@@ -77,13 +77,6 @@ wss.on("connection", async (socket) => {
                 );
             } else {
 
-                socket.send(JSON.stringify({
-                    content: payload.data.content,
-                    sender_phone: sender_phone,
-                    reciever_phone: rec_phone,
-                    timestamp: Date.now()
-                }))
-
                 const newConvo = await pgclient.query(
                     `INSERT INTO conversations (user1_phone, user2_phone, last_message_at) 
                      VALUES ($1, $2, NOW()) 
@@ -99,9 +92,16 @@ wss.on("connection", async (socket) => {
                     [conversationId, sender_phone, rec_phone, payload.data.content, status]
                 );
 
+                socket.send(JSON.stringify({
+                    content: payload.data.content,
+                    sender_phone: sender_phone,
+                    reciever_phone: rec_phone,
+                    timestamp: Date.now()
+                }))
+
             }
 
-        } else if (topic == 'typing') {
+        } else if (topic == 'typing') {//this logic would work for only the case of two  users , not for a group 
 
             const rec_phone = payload.data.reciever_phonenum;
             const recipientSocket = mappings.get(rec_phone);

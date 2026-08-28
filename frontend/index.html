@@ -3,142 +3,123 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>💬 Real Chat</title>
+    <title>Stark Chat</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         body {
-            background: #0f0f13;
+            background: #0b141a;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 20px;
         }
 
-        .container {
+        .app {
             width: 100%;
-            max-width: 480px;
-            background: #1a1a1e;
+            max-width: 420px;
+            height: 95vh;
+            background: #1e2a32;
             border-radius: 24px;
-            padding: 24px 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
-            border: 1px solid #2c2c32;
-            height: 90vh;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
         }
 
-        /* HEADER */
+        /* Header */
         .header {
+            background: #1a2630;
+            padding: 16px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-bottom: 14px;
-            border-bottom: 1px solid #2a2a30;
+            border-bottom: 1px solid #2a3a45;
             flex-shrink: 0;
         }
 
         .header h1 {
-            font-size: 20px;
+            color: #e9edef;
+            font-size: 18px;
             font-weight: 600;
-            color: #ffffff;
         }
 
-        .status-badge {
+        .header .status {
             display: flex;
             align-items: center;
             gap: 8px;
             font-size: 12px;
-            color: #88889a;
+            color: #8696a0;
         }
 
-        .dot {
+        .header .status .dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             display: inline-block;
         }
 
-        .dot.online {
-            background: #2ecc71;
-            box-shadow: 0 0 8px #2ecc7166;
+        .header .status .dot.online {
+            background: #25d366;
         }
 
-        .dot.offline {
-            background: #63637a;
+        .header .status .dot.offline {
+            background: #667781;
         }
 
-        /* USER INFO */
-        .user-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0 8px 0;
+        /* Auth Section */
+        .auth-section {
+            padding: 20px;
             flex-shrink: 0;
-            gap: 8px;
         }
 
-        .user-info .phone-display {
-            color: #aaaabc;
-            font-size: 13px;
-        }
-
-        .user-info .badge {
-            background: #2d2d35;
-            padding: 2px 12px;
-            border-radius: 40px;
-            font-size: 11px;
-            color: #aaa;
-        }
-
-        /* AUTH SECTION */
-        #authSection {
-            flex-shrink: 0;
-            padding: 10px 0 4px 0;
-        }
-
-        #authSection .form-group {
+        .auth-section .input-group {
             margin-bottom: 10px;
         }
 
-        #authSection label {
+        .auth-section label {
             display: block;
             font-size: 11px;
             font-weight: 500;
-            color: #9a9aae;
-            margin-bottom: 3px;
+            color: #8696a0;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        #authSection input {
+        .auth-section input {
             width: 100%;
             padding: 10px 14px;
-            background: #121217;
-            border: 1px solid #2c2c34;
+            background: #2a3a45;
+            border: 1px solid #3a4a55;
             border-radius: 10px;
-            color: #fff;
-            font-size: 13px;
+            color: #e9edef;
+            font-size: 14px;
             transition: 0.2s;
         }
 
-        #authSection input:focus {
+        .auth-section input:focus {
             outline: none;
-            border-color: #6c5ce7;
-            background: #18181e;
+            border-color: #25d366;
+            background: #1e2a32;
         }
 
-        .btn-row {
+        .auth-section input::placeholder {
+            color: #667781;
+        }
+
+        .auth-section .btn-row {
             display: flex;
-            gap: 8px;
-            margin-top: 6px;
+            gap: 10px;
+            margin-top: 4px;
         }
 
-        .btn-row .btn {
+        .auth-section .btn-row button {
             flex: 1;
             padding: 10px;
             border: none;
@@ -150,68 +131,150 @@
         }
 
         .btn-primary {
-            background: #6c5ce7;
-            color: white;
+            background: #25d366;
+            color: #0b141a;
         }
+
         .btn-primary:hover {
-            background: #5a4bd1;
+            background: #1ebe5a;
         }
 
-        .btn-success {
-            background: #00b894;
-            color: white;
-        }
-        .btn-success:hover {
-            background: #00a381;
+        .btn-secondary {
+            background: #2a3a45;
+            color: #e9edef;
         }
 
-        .btn-danger {
-            background: #e17055;
-            color: white;
-        }
-        .btn-danger:hover {
-            background: #d63031;
+        .btn-secondary:hover {
+            background: #3a4a55;
         }
 
-        .btn-outline {
-            background: transparent;
-            border: 1px solid #3a3a42;
-            color: #ccc;
-        }
-        .btn-outline:hover {
-            background: #22222a;
+        /* Chat Area - Two column layout */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        .btn-sm {
-            padding: 6px 14px;
+        .chat-area .chat-header {
+            padding: 12px 20px;
+            background: #1a2630;
+            border-bottom: 1px solid #2a3a45;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .chat-area .chat-header .chat-user {
+            color: #e9edef;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .chat-area .chat-header .chat-status {
             font-size: 12px;
-            width: auto;
+            color: #8696a0;
         }
 
-        /* MESSAGES AREA */
-        .messages-area {
+        /* Conversation List */
+        .conv-list {
             flex: 1;
             overflow-y: auto;
-            padding: 12px 4px 8px 4px;
-            margin: 6px 0 8px 0;
-            background: #0b0b0f;
-            border-radius: 14px;
-            border: 1px solid #1e1e24;
-            min-height: 0;
+            padding: 8px 0;
+            background: #131f28;
         }
 
-        .messages-area .empty-state {
-            color: #55556a;
+        .conv-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            transition: 0.15s;
+            border-bottom: 1px solid #1a2630;
+        }
+
+        .conv-item:hover {
+            background: #1a2a35;
+        }
+
+        .conv-item .avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #25d366;
+            color: #0b141a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .conv-item .conv-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .conv-item .conv-info .conv-name {
+            color: #e9edef;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .conv-item .conv-info .conv-last {
+            color: #8696a0;
             font-size: 13px;
-            text-align: center;
-            padding: 40px 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .msg {
-            margin-bottom: 10px;
-            max-width: 85%;
-            padding: 10px 14px;
-            border-radius: 14px;
+        .conv-item .conv-meta {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .conv-item .conv-meta .conv-time {
+            font-size: 11px;
+            color: #667781;
+        }
+
+        .conv-list .empty {
+            color: #667781;
+            font-size: 14px;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        /* Messages */
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            background: #131f28;
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .messages.active {
+            display: flex;
+        }
+
+        .messages .empty {
+            color: #667781;
+            font-size: 14px;
+            text-align: center;
+            margin: auto;
+        }
+
+        .messages .msg {
+            max-width: 80%;
+            padding: 8px 14px;
+            border-radius: 12px;
             font-size: 14px;
             line-height: 1.5;
             word-wrap: break-word;
@@ -229,92 +292,115 @@
             }
         }
 
-        .msg.sent {
-            background: #6c5ce7;
-            color: #fff;
+        .messages .msg.sent {
+            background: #25d366;
+            color: #0b141a;
             align-self: flex-end;
-            margin-left: auto;
             border-bottom-right-radius: 4px;
         }
 
-        .msg.received {
-            background: #25252c;
-            color: #e0e0e8;
+        .messages .msg.received {
+            background: #1e2a32;
+            color: #e9edef;
             align-self: flex-start;
-            margin-right: auto;
             border-bottom-left-radius: 4px;
         }
 
-        .msg .msg-meta {
+        .messages .msg .meta {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            margin-top: 4px;
+            gap: 10px;
             font-size: 10px;
-            color: #8888a0;
+            color: #667781;
+            margin-top: 2px;
         }
 
-        .msg.sent .msg-meta {
-            color: #b8b0e8;
+        .messages .msg.sent .meta {
+            color: #0b4a1a;
         }
 
-        .msg .msg-sender {
-            font-weight: 500;
+        .messages .msg .sender {
             font-size: 12px;
+            font-weight: 500;
+            color: #25d366;
             margin-bottom: 2px;
         }
 
-        .msg.sent .msg-sender {
-            color: #c8c0f0;
+        .messages .msg.received .sender {
+            color: #58d3a8;
         }
 
-        .msg.received .msg-sender {
-            color: #88d0ff;
+        /* Back button */
+        .back-btn {
+            background: none;
+            border: none;
+            color: #25d366;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
         }
 
-        .messages-area {
-            display: flex;
-            flex-direction: column;
+        .back-btn:hover {
+            color: #1ebe5a;
         }
 
-        /* INPUT AREA */
+        /* Input Area */
         .input-area {
-            display: flex;
+            padding: 12px 16px;
+            background: #1a2630;
+            border-top: 1px solid #2a3a45;
+            display: none;
             gap: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #2a2a30;
+            flex-shrink: 0;
+            align-items: center;
+        }
+
+        .input-area.active {
+            display: flex;
+        }
+
+        .input-area .to-input {
+            flex: 1;
+            padding: 8px 12px;
+            background: #2a3a45;
+            border: 1px solid #3a4a55;
+            border-radius: 8px;
+            color: #e9edef;
+            font-size: 12px;
+            width: 100px;
             flex-shrink: 0;
         }
 
-        .input-area .input-group {
-            flex: 1;
+        .input-area .to-input:focus {
+            outline: none;
+            border-color: #25d366;
         }
 
-        .input-area .input-group input {
-            width: 100%;
-            padding: 10px 14px;
-            background: #121217;
-            border: 1px solid #2c2c34;
-            border-radius: 10px;
-            color: #fff;
+        .input-area .msg-input {
+            flex: 2;
+            padding: 8px 14px;
+            background: #2a3a45;
+            border: 1px solid #3a4a55;
+            border-radius: 8px;
+            color: #e9edef;
             font-size: 13px;
         }
 
-        .input-area .input-group input:focus {
+        .input-area .msg-input:focus {
             outline: none;
-            border-color: #6c5ce7;
-            background: #18181e;
+            border-color: #25d366;
         }
 
-        .input-area .input-group input::placeholder {
-            color: #55556a;
+        .input-area .msg-input::placeholder {
+            color: #667781;
         }
 
-        .input-area .btn {
-            padding: 10px 18px;
+        .input-area button {
+            padding: 8px 18px;
+            background: #25d366;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
+            color: #0b141a;
             font-weight: 600;
             font-size: 13px;
             cursor: pointer;
@@ -322,76 +408,137 @@
             white-space: nowrap;
         }
 
-        /* HIDDEN */
+        .input-area button:hover {
+            background: #1ebe5a;
+        }
+
+        /* Logs */
+        .log-area {
+            background: #0d1820;
+            padding: 8px 14px;
+            max-height: 80px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            color: #667781;
+            border-top: 1px solid #1a2630;
+            flex-shrink: 0;
+        }
+
+        .log-area .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid #0f1a22;
+        }
+
+        .log-area .log-entry .highlight {
+            color: #25d366;
+        }
+
+        .log-area .log-entry .error {
+            color: #e74c3c;
+        }
+
         .hidden {
             display: none !important;
         }
 
-        /* SCROLLBAR */
+        .flex-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .badge {
+            background: #2a3a45;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            color: #8696a0;
+        }
+
         ::-webkit-scrollbar {
             width: 4px;
         }
+
         ::-webkit-scrollbar-track {
-            background: #0f0f13;
+            background: #0d1820;
         }
+
         ::-webkit-scrollbar-thumb {
-            background: #3a3a44;
+            background: #2a3a45;
             border-radius: 10px;
+        }
+
+        .conv-list .conv-item.active {
+            background: #1a2a35;
+            border-left: 3px solid #25d366;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- HEADER -->
+    <div class="app" id="app">
+        <!-- Header -->
         <div class="header">
-            <h1>💬 Chat</h1>
-            <div class="status-badge">
+            <h1>Stark Chat</h1>
+            <div class="status">
                 <span class="dot offline" id="statusDot"></span>
                 <span id="statusText">Offline</span>
+                <span class="badge" id="connBadge">WS: --</span>
             </div>
         </div>
 
-        <!-- USER INFO -->
-        <div class="user-info" id="userInfo" style="display:none;">
-            <span class="phone-display" id="myPhoneDisplay">📱 +919876543210</span>
-            <span class="badge" id="onlineCount">0 online</span>
-        </div>
-
-        <!-- AUTH SECTION -->
-        <div id="authSection">
-            <div class="form-group">
-                <label>📱 Phone</label>
+        <!-- Auth Section -->
+        <div class="auth-section" id="authSection">
+            <div class="input-group">
+                <label>Phone</label>
                 <input id="phoneInput" placeholder="+919876543210" value="+919876543210" />
             </div>
-            <div class="form-group">
-                <label>🔒 Password</label>
+            <div class="input-group">
+                <label>Password</label>
                 <input id="passwordInput" type="password" placeholder="••••••••" value="password123" />
             </div>
-            <div class="form-group">
-                <label>👤 Name</label>
+            <div class="input-group">
+                <label>Name</label>
                 <input id="nameInput" placeholder="Your name" value="Test User" />
             </div>
             <div class="btn-row">
-                <button class="btn btn-primary" id="signupBtn">Sign Up</button>
-                <button class="btn btn-success" id="loginBtn">Login</button>
+                <button class="btn-secondary" id="signupBtn">Sign Up</button>
+                <button class="btn-primary" id="loginBtn">Login</button>
             </div>
         </div>
 
-        <!-- MESSAGES AREA -->
-        <div class="messages-area" id="messagesArea">
-            <div class="empty-state" id="emptyState">💬 No messages yet.<br />Login and start chatting!</div>
+        <!-- Chat Area -->
+        <div class="chat-area hidden" id="chatArea">
+            <div class="chat-header">
+                <div class="flex-row">
+                    <button class="back-btn hidden" id="backBtn">&#8592;</button>
+                    <span class="chat-user" id="chatUser">Chats</span>
+                </div>
+                <span class="chat-status" id="chatStatus">Connected</span>
+            </div>
+
+            <!-- Conversation List -->
+            <div class="conv-list" id="convList">
+                <div class="empty">No conversations yet.<br />Start a chat!</div>
+            </div>
+
+            <!-- Messages -->
+            <div class="messages" id="messages">
+                <div class="empty">Select a conversation</div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area" id="inputArea">
+                <input class="to-input" id="recipientInput" placeholder="To" value="+919999999999" />
+                <input class="msg-input" id="messageInput" placeholder="Type a message..." />
+                <button id="sendBtn">Send</button>
+            </div>
         </div>
 
-        <!-- INPUT AREA -->
-        <div class="input-area" id="inputArea" style="display:none;">
-            <div class="input-group">
-                <input id="recipientInput" placeholder="To (phone) e.g. +919999999999" value="+919999999999" />
-            </div>
-            <div class="input-group" style="flex:2;">
-                <input id="messageInput" placeholder="Type a message..." />
-            </div>
-            <button class="btn btn-primary" id="sendBtn">Send</button>
+        <!-- Logs -->
+        <div class="log-area" id="logArea">
+            <div class="log-entry">[system] Ready</div>
         </div>
     </div>
 
@@ -406,21 +553,27 @@
             isConnected: false,
             messages: [],
             myPhone: null,
+            conversations: [],
+            selectedConv: null,
+            activeConvId: null,
         };
 
         // ============================================================
         // DOM REFS
         // ============================================================
         const $ = (id) => document.getElementById(id);
+        const logArea = $('logArea');
+        const messages = $('messages');
+        const convList = $('convList');
         const statusDot = $('statusDot');
         const statusText = $('statusText');
-        const myPhoneDisplay = $('myPhoneDisplay');
-        const onlineCount = $('onlineCount');
-        const userInfo = $('userInfo');
+        const connBadge = $('connBadge');
+
         const authSection = $('authSection');
-        const messagesArea = $('messagesArea');
-        const emptyState = $('emptyState');
-        const inputArea = $('inputArea');
+        const chatArea = $('chatArea');
+        const chatUser = $('chatUser');
+        const chatStatus = $('chatStatus');
+        const backBtn = $('backBtn');
 
         const phoneInput = $('phoneInput');
         const passwordInput = $('passwordInput');
@@ -433,69 +586,19 @@
         const sendBtn = $('sendBtn');
 
         // ============================================================
-        // LOCAL STORAGE
+        // LOGGING
         // ============================================================
-        function loadMessages() {
-            const stored = localStorage.getItem('chat_messages');
-            if (stored) {
-                try {
-                    state.messages = JSON.parse(stored);
-                    return true;
-                } catch { /* ignore */ }
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            const cls = type === 'error' ? 'error' : (type === 'highlight' ? 'highlight' : '');
+            entry.innerHTML = `<span class="${cls}">[${timestamp}] ${message}</span>`;
+            logArea.appendChild(entry);
+            logArea.scrollTop = logArea.scrollHeight;
+            if (logArea.children.length > 50) {
+                logArea.removeChild(logArea.firstChild);
             }
-            state.messages = [];
-            return false;
-        }
-
-        function saveMessages() {
-            try {
-                localStorage.setItem('chat_messages', JSON.stringify(state.messages));
-            } catch { /* ignore */ }
-        }
-
-        function loadUser() {
-            const stored = localStorage.getItem('chat_user');
-            if (stored) {
-                try {
-                    const user = JSON.parse(stored);
-                    if (user.phone) {
-                        state.user = user;
-                        state.myPhone = user.phone;
-                        return true;
-                    }
-                } catch { /* ignore */ }
-            }
-            return false;
-        }
-
-        function saveUser(user) {
-            try {
-                localStorage.setItem('chat_user', JSON.stringify(user));
-            } catch { /* ignore */ }
-        }
-
-        function loadToken() {
-            const stored = localStorage.getItem('chat_token');
-            if (stored) {
-                state.token = stored;
-                return true;
-            }
-            return false;
-        }
-
-        function saveToken(token) {
-            try {
-                localStorage.setItem('chat_token', token);
-            } catch { /* ignore */ }
-        }
-
-        function clearSession() {
-            localStorage.removeItem('chat_token');
-            localStorage.removeItem('chat_user');
-            // Keep messages
-            state.token = null;
-            state.user = null;
-            state.myPhone = null;
         }
 
         // ============================================================
@@ -505,99 +608,170 @@
             state.isConnected = connected;
             statusDot.className = `dot ${connected ? 'online' : 'offline'}`;
             statusText.textContent = connected ? 'Online' : 'Offline';
-        }
-
-        function updateOnlineCount(count) {
-            onlineCount.textContent = count > 0 ? `${count} online` : '0 online';
+            connBadge.textContent = connected ? 'WS: ON' : 'WS: OFF';
         }
 
         function showAuth(show) {
             authSection.classList.toggle('hidden', !show);
-            userInfo.style.display = show ? 'none' : 'flex';
-            inputArea.style.display = show ? 'none' : 'flex';
-        }
-
-        function renderMessages() {
-            // Clear existing messages (keep empty state)
-            const existing = messagesArea.querySelectorAll('.msg');
-            existing.forEach(el => el.remove());
-
-            if (state.messages.length === 0) {
-                emptyState.style.display = 'block';
-                return;
+            chatArea.classList.toggle('hidden', show);
+            if (!show) {
+                loadConversations();
             }
-            emptyState.style.display = 'none';
-
-            // Render all messages
-            state.messages.forEach(msg => {
-                const isSent = msg.from === state.myPhone;
-                const div = document.createElement('div');
-                div.className = `msg ${isSent ? 'sent' : 'received'}`;
-
-                const senderName = msg.sender_name || (isSent ? 'You' : msg.from);
-                div.innerHTML = `
-                    <div class="msg-sender">${senderName}</div>
-                    ${msg.message}
-                    <div class="msg-meta">
-                        <span>${new Date(msg.timestamp || Date.now()).toLocaleTimeString()}</span>
-                        ${isSent ? '✓' : ''}
-                    </div>
-                `;
-                messagesArea.appendChild(div);
-            });
-
-            messagesArea.scrollTop = messagesArea.scrollHeight;
-        }
-
-        function addMessage(msg) {
-            // Avoid duplicates (check by content + timestamp + from)
-            const exists = state.messages.some(m =>
-                m.message === msg.message &&
-                m.from === msg.from &&
-                Math.abs((m.timestamp || 0) - (msg.timestamp || 0)) < 1000
-            );
-            if (exists) return;
-
-            state.messages.push(msg);
-            saveMessages();
-            renderMessages();
         }
 
         function setMyPhone(phone) {
             state.myPhone = phone;
-            myPhoneDisplay.textContent = `📱 ${phone}`;
-            if (state.user) {
-                state.user.phone = phone;
-                saveUser(state.user);
+            chatUser.textContent = 'Chats';
+        }
+
+        // ============================================================
+        // CONVERSATIONS
+        // ============================================================
+        async function loadConversations() {
+            try {
+                const response = await fetch('http://localhost:8000/myconversation', {
+                    method: 'POST',
+                    headers: {
+                        'token': state.token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.text();
+
+                if (data === 'you dont have any active conversations present!') {
+                    convList.innerHTML = '<div class="empty">No conversations yet.<br />Start a chat!</div>';
+                    return;
+                }
+
+                try {
+                    const convs = JSON.parse(data);
+                    state.conversations = convs;
+                    renderConversations(convs);
+                } catch (e) {
+                    log('Error parsing conversations: ' + e.message, 'error');
+                }
+
+            } catch (error) {
+                log('Failed to load conversations: ' + error.message, 'error');
+            }
+        }
+
+        function renderConversations(convs) {
+            if (!convs || convs.length === 0) {
+                convList.innerHTML = '<div class="empty">No conversations yet.<br />Start a chat!</div>';
+                return;
+            }
+
+            let html = '';
+            for (const conv of convs) {
+                const otherPhone = conv.other_user_phone || (conv.user1_phone === state.myPhone ? conv.user2_phone : conv
+                    .user1_phone);
+                const otherName = conv.other_user_name || otherPhone;
+                const initial = otherName.charAt(0).toUpperCase();
+                const time = conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString() : '';
+
+                html += `
+                    <div class="conv-item" data-id="${conv.id}" data-phone="${otherPhone}" data-name="${otherName}">
+                        <div class="avatar">${initial}</div>
+                        <div class="conv-info">
+                            <div class="conv-name">${otherName}</div>
+                            <div class="conv-last">${conv.last_message || 'No messages yet'}</div>
+                        </div>
+                        <div class="conv-meta">
+                            <div class="conv-time">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            convList.innerHTML = html;
+
+            document.querySelectorAll('.conv-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const id = el.dataset.id;
+                    const phone = el.dataset.phone;
+                    const name = el.dataset.name;
+                    openConversation(id, phone, name);
+                });
+            });
+        }
+
+        // ============================================================
+        // OPEN CONVERSATION
+        // ============================================================
+        async function openConversation(convId, phone, name) {
+            state.activeConvId = convId;
+            state.selectedConv = phone;
+
+            chatUser.textContent = name || phone;
+            backBtn.classList.remove('hidden');
+
+            messages.classList.add('active');
+            messages.innerHTML = '<div class="empty">Loading messages...</div>';
+
+            recipientInput.value = phone;
+            document.getElementById('inputArea').classList.add('active');
+
+            document.querySelectorAll('.conv-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.id === convId);
+            });
+
+            await loadMessages(convId);
+        }
+
+        // ============================================================
+        // LOAD MESSAGES
+        // ============================================================
+        async function loadMessages(convId) {
+            try {
+                const response = await fetch('http://localhost:8000/getmessages', {
+                    method: 'POST',
+                    headers: {
+                        'token': state.token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ conversationId: convId })
+                });
+
+                const data = await response.json();
+
+                messages.innerHTML = '';
+
+                if (data.success && data.messages && data.messages.length > 0) {
+                    for (const msg of data.messages) {
+                        const isSent = msg.sender_phone === state.myPhone;
+                        addMessageUI(msg, isSent);
+                    }
+                } else {
+                    messages.innerHTML = '<div class="empty">No messages yet.<br />Start the conversation!</div>';
+                }
+
+            } catch (error) {
+                log('Failed to load messages: ' + error.message, 'error');
+                messages.innerHTML = '<div class="empty">Error loading messages</div>';
             }
         }
 
         // ============================================================
-        // AUTH FLOW
+        // BACK BUTTON
         // ============================================================
-        function loginSuccess(token, user) {
-            state.token = token;
-            state.user = user;
-            state.myPhone = user.phone;
-
-            saveToken(token);
-            saveUser(user);
-
-            setMyPhone(user.phone);
-            showAuth(false);
-            setStatus(false);
-            updateOnlineCount(0);
-
-            // Load previous messages
-            loadMessages();
-            renderMessages();
-
-            // Auto-connect WebSocket
-            connectWebSocket();
-        }
+        backBtn.addEventListener('click', () => {
+            state.activeConvId = null;
+            state.selectedConv = null;
+            chatUser.textContent = 'Chats';
+            backBtn.classList.add('hidden');
+            messages.classList.remove('active');
+            messages.innerHTML = '<div class="empty">Select a conversation</div>';
+            document.getElementById('inputArea').classList.remove('active');
+            document.querySelectorAll('.conv-item').forEach(el => {
+                el.classList.remove('active');
+            });
+            loadConversations();
+        });
 
         // ============================================================
-        // HTTP REQUESTS
+        // API HELPERS
         // ============================================================
         const API_BASE = 'http://localhost:8000';
 
@@ -612,7 +786,7 @@
         }
 
         // ============================================================
-        // SIGNUP
+        // AUTH
         // ============================================================
         signupBtn.addEventListener('click', async () => {
             const phone = phoneInput.value.trim();
@@ -620,53 +794,57 @@
             const name = nameInput.value.trim();
 
             if (!phone || !password || !name) {
-                alert('Please fill in all fields');
+                log('Please fill all fields', 'error');
                 return;
             }
 
+            log(`Signing up ${phone}...`, 'info');
             try {
                 const res = await httpPost('/signup', { phone, password, name });
-                if (res.message) {
-                    alert('✅ ' + res.message);
-                } else if (res.error) {
-                    alert('❌ ' + res.error);
-                } else {
-                    alert('✅ ' + JSON.stringify(res));
-                }
+                log(res.message || 'Signup successful', 'highlight');
             } catch (e) {
-                alert('❌ Signup error: ' + e.message);
+                log('Signup error: ' + e.message, 'error');
             }
         });
 
-        // ============================================================
-        // LOGIN
-        // ============================================================
         loginBtn.addEventListener('click', async () => {
             const phone = phoneInput.value.trim();
             const password = passwordInput.value.trim();
 
             if (!phone || !password) {
-                alert('Please enter phone and password');
+                log('Enter phone and password', 'error');
                 return;
             }
 
+            log(`Logging in ${phone}...`, 'info');
             try {
                 const res = await httpPost('/login', { phone, password });
 
                 if (res.token) {
-                    const user = {
-                        phone: phone,
-                        name: nameInput.value.trim() || 'User'
-                    };
-                    loginSuccess(res.token, user);
+                    state.token = res.token;
+                    state.user = { phone };
+                    state.myPhone = phone;
+
+                    log('Login successful', 'highlight');
+                    showAuth(false);
+                    setMyPhone(phone);
+                    setStatus(false);
+                    chatStatus.textContent = 'Authenticated';
+
+                    connectWebSocket();
+                    loadConversations();
                 } else if (res.message) {
-                    alert('❌ ' + res.message);
+                    log('Login failed: ' + res.message, 'error');
                 } else {
-                    alert('❌ ' + JSON.stringify(res));
+                    log('Login failed', 'error');
                 }
             } catch (e) {
-                alert('❌ Login error: ' + e.message);
+                log('Login error: ' + e.message, 'error');
             }
+        });
+
+        passwordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') loginBtn.click();
         });
 
         // ============================================================
@@ -674,75 +852,68 @@
         // ============================================================
         function connectWebSocket() {
             if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+                log('Already connected', 'info');
                 return;
             }
 
             if (!state.token) {
+                log('No token. Login first.', 'error');
                 return;
             }
 
+            log('Connecting WebSocket...', 'info');
             state.ws = new WebSocket('ws://localhost:8080');
 
             state.ws.onopen = () => {
+                log('WebSocket opened', 'highlight');
                 setStatus(true);
-                // Send auth
+                chatStatus.textContent = 'Connected';
+
                 state.ws.send(JSON.stringify({
                     event: 'auth',
-                    data: state.token,
+                    data: state.token
                 }));
+                log('Auth sent', 'info');
             };
 
             state.ws.onmessage = (event) => {
                 try {
                     const msg = JSON.parse(event.data);
+                    log('Received: ' + JSON.stringify(msg).slice(0, 80), 'info');
 
-                    // Handle auth success
                     if (msg.event === 'auth_success') {
-                        setStatus(true);
-                        return;
+                        log('Authenticated by WS server', 'highlight');
+                        chatStatus.textContent = 'Ready';
                     }
 
-                    // Handle auth failed
-                    if (msg.event === 'auth_failed') {
-                        alert('❌ Authentication failed: ' + (msg.message || 'Invalid token'));
-                        setStatus(false);
-                        return;
+                    if (msg.event === 'newMessage' || msg.message || msg.content) {
+                        const data = msg.data || msg;
+                        const isSent = data.sender_phone === state.myPhone;
+                        addMessageUI(data, isSent);
                     }
 
-                    // Handle chat messages
-                    if (msg.message) {
-                        addMessage({
-                            from: msg.sender_phone || 'unknown',
-                            sender_name: msg.sender_name || 'Unknown',
-                            message: msg.message,
-                            timestamp: Date.now(),
-                        });
-                        return;
+                    if (msg.event === 'messageStatus') {
+                        log('Status: ' + msg.data.status, 'highlight');
                     }
 
-                    // Handle any message with a message field
-                    if (msg.data && msg.data.message) {
-                        addMessage({
-                            from: msg.data.sender_phone || msg.data.sender_name || 'unknown',
-                            sender_name: msg.data.sender_name || 'Unknown',
-                            message: msg.data.message,
-                            timestamp: Date.now(),
-                        });
-                        return;
+                    if (msg.event === 'error') {
+                        log('WS Error: ' + msg.message, 'error');
                     }
 
                 } catch (e) {
-                    // Silent ignore
+                    log('Raw: ' + event.data.slice(0, 60), 'info');
                 }
             };
 
             state.ws.onclose = () => {
+                log('WebSocket closed', 'error');
                 setStatus(false);
+                chatStatus.textContent = 'Disconnected';
                 state.ws = null;
             };
 
             state.ws.onerror = (error) => {
-                setStatus(false);
+                log('WS error: ' + error.message, 'error');
             };
         }
 
@@ -751,39 +922,61 @@
         // ============================================================
         function sendMessage() {
             if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-                alert('Not connected to chat server.');
+                log('Not connected to WebSocket', 'error');
                 return;
             }
 
-            const receiver = recipientInput.value.trim();
+            const recipient = recipientInput.value.trim();
             const text = messageInput.value.trim();
 
-            if (!receiver || !text) {
-                alert('Please enter recipient and message');
+            if (!recipient || !text) {
+                log('Enter recipient and message', 'error');
                 return;
             }
 
             const payload = {
                 event: 'chat',
                 data: {
-                    reciever_phonenum: receiver,
-                    message: text,
-                    sendername: state.user?.name || state.myPhone || 'Me',
-                    sender_phone: state.myPhone,
-                },
+                    sender_phonenum: state.myPhone,
+                    reciever_phonenum: recipient,
+                    content: text,
+                    sender_name: 'You'
+                }
             };
 
             state.ws.send(JSON.stringify(payload));
+            log('Sent: ' + text, 'highlight');
 
-            // Add to local messages (sent)
-            addMessage({
-                from: state.myPhone,
+            addMessageUI({
+                content: text,
+                sender_phone: state.myPhone,
                 sender_name: 'You',
-                message: text,
-                timestamp: Date.now(),
-            });
+                timestamp: Date.now()
+            }, true);
 
             messageInput.value = '';
+        }
+
+        function addMessageUI(msg, isSent) {
+            const empty = messages.querySelector('.empty');
+            if (empty) empty.remove();
+
+            const div = document.createElement('div');
+            div.className = `msg ${isSent ? 'sent' : 'received'}`;
+
+            const senderName = msg.sender_name || (isSent ? 'You' : msg.sender_phone || 'Unknown');
+            const time = new Date(msg.timestamp || msg.created_at || Date.now()).toLocaleTimeString();
+
+            div.innerHTML = `
+                <div class="sender">${senderName}</div>
+                ${msg.content || msg.message || msg.text || ''}
+                <div class="meta">
+                    <span>${time}</span>
+                    ${isSent ? '✓' : ''}
+                </div>
+            `;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
         }
 
         sendBtn.addEventListener('click', sendMessage);
@@ -796,41 +989,12 @@
         });
 
         // ============================================================
-        // AUTO-RECONNECT
-        // ============================================================
-        setInterval(() => {
-            if (state.token && (!state.ws || state.ws.readyState !== WebSocket.OPEN)) {
-                connectWebSocket();
-            }
-        }, 5000);
-
-        // ============================================================
         // INIT
         // ============================================================
-        // Load session
-        const hasToken = loadToken();
-        const hasUser = loadUser();
-
-        if (hasToken && hasUser && state.user) {
-            state.myPhone = state.user.phone;
-            setMyPhone(state.user.phone);
-            showAuth(false);
-            loadMessages();
-            renderMessages();
-            connectWebSocket();
-        } else {
-            // Check if we have messages to show
-            loadMessages();
-            renderMessages();
-            showAuth(true);
-        }
-
-        // Enter to login
-        passwordInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') loginBtn.click();
-        });
-
-        console.log('💬 Chat app ready!');
+        log('Stark Chat ready', 'highlight');
+        log('HTTP: ' + API_BASE, 'info');
+        log('WS: ws://localhost:8080', 'info');
+        log('Login to start chatting', 'info');
     </script>
 
 </body>

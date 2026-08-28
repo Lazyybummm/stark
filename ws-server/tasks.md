@@ -2,6 +2,8 @@ things my websocket server should be having
 1.persistence of messages->should be done in a non blocking manner 
 2.event handling (done with auth , chat )
 3.need to handle the case of the user is offline too , just save into the db (right a seperate message query)
+4.the frontend should handle that when the user sees the senders message only then the seen event shoud be fired for that message 
+5.for a group i hink i need to add an array of users , if one user types , i will query the conversation , will loop thorigh the fetches array and send to the repsective sockets , the messe sor any other event->how will i handle the message reading in this case
 
 
 

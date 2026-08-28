@@ -128,6 +128,74 @@ app.post('/myconversation',async (req,res)=>{
 })
 
 
+app.post('/getmessages', async (req, res) => {//fetching the messages based on a conversation id 
+    try {
+        const token = req.headers.token;
+        console.log("Token received:", token);
+
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: "No token provided"
+            });
+        }
+
+        const decode = jwt.verify(token, process.env.JWT_SECRET_KEY);//this should be in a middleware
+        const { conversationId } = req.body;
+
+        if (!conversationId) {
+            return res.status(400).json({
+                success: false,
+                message: "Conversation ID is required"
+            });
+        }
+
+        console.log("Fetching messages for conversation:", conversationId);
+
+        const result = await pgclient.query(
+            `SELECT * FROM messages 
+             WHERE conversation_id = $1
+             ORDER BY created_at ASC`,
+            [conversationId]
+        );
+
+        if (result.rowCount !== 0) {
+            return res.json({
+                success: true,
+                count: result.rowCount,
+                messages: result.rows
+            });
+        }
+
+        return res.json({
+            success: true,
+            count: 0,
+            messages: [],
+            message: "No messages found for this conversation"
+        });
+
+    } catch (error) {
+        console.error("Error fetching messages:", error.message);
+
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid token"
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Error fetching messages",
+            error: error.message
+        });
+    }
+});
+
+
+
+
+
 
 
 app.listen(8000);
