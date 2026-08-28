@@ -105,6 +105,28 @@ app.post("/login",async (req,res)=>{//revise about jwt and bcrypt
 
 })
 
+app.post('/myconversation',async (req,res)=>{
+    try{
+        const token=req.headers.token;
+        console.log(token);
+        const decode=jwt.verify(token,process.env.JWT_SECRET_KEY)
+        const result = await pgclient.query(
+            `SELECT * FROM conversations 
+             WHERE user1_phone = $1 OR user2_phone = $1
+             ORDER BY last_message_at DESC`,
+            [decode.phone]
+        );
+        if(result.rowCount!=0){
+            return res.send(result.rows)//on the frontend render accordingly
+        }
+        return res.send("you dont have any active conversations present!")
+        
+    }catch(e){
+        console.log(e)
+        console.log("error occured");
+    }
+})
+
 
 
 
