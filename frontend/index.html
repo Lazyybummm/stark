@@ -1,1001 +1,706 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stark Chat</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-
-        body {
-            background: #0b141a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-
-        .app {
-            width: 100%;
-            max-width: 420px;
-            height: 95vh;
-            background: #1e2a32;
-            border-radius: 24px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-        }
-
-        /* Header */
-        .header {
-            background: #1a2630;
-            padding: 16px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #2a3a45;
-            flex-shrink: 0;
-        }
-
-        .header h1 {
-            color: #e9edef;
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .header .status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: #8696a0;
-        }
-
-        .header .status .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .header .status .dot.online {
-            background: #25d366;
-        }
-
-        .header .status .dot.offline {
-            background: #667781;
-        }
-
-        /* Auth Section */
-        .auth-section {
-            padding: 20px;
-            flex-shrink: 0;
-        }
-
-        .auth-section .input-group {
-            margin-bottom: 10px;
-        }
-
-        .auth-section label {
-            display: block;
-            font-size: 11px;
-            font-weight: 500;
-            color: #8696a0;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .auth-section input {
-            width: 100%;
-            padding: 10px 14px;
-            background: #2a3a45;
-            border: 1px solid #3a4a55;
-            border-radius: 10px;
-            color: #e9edef;
-            font-size: 14px;
-            transition: 0.2s;
-        }
-
-        .auth-section input:focus {
-            outline: none;
-            border-color: #25d366;
-            background: #1e2a32;
-        }
-
-        .auth-section input::placeholder {
-            color: #667781;
-        }
-
-        .auth-section .btn-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 4px;
-        }
-
-        .auth-section .btn-row button {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .btn-primary {
-            background: #25d366;
-            color: #0b141a;
-        }
-
-        .btn-primary:hover {
-            background: #1ebe5a;
-        }
-
-        .btn-secondary {
-            background: #2a3a45;
-            color: #e9edef;
-        }
-
-        .btn-secondary:hover {
-            background: #3a4a55;
-        }
-
-        /* Chat Area - Two column layout */
-        .chat-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .chat-area .chat-header {
-            padding: 12px 20px;
-            background: #1a2630;
-            border-bottom: 1px solid #2a3a45;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-        }
-
-        .chat-area .chat-header .chat-user {
-            color: #e9edef;
-            font-size: 15px;
-            font-weight: 500;
-        }
-
-        .chat-area .chat-header .chat-status {
-            font-size: 12px;
-            color: #8696a0;
-        }
-
-        /* Conversation List */
-        .conv-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px 0;
-            background: #131f28;
-        }
-
-        .conv-item {
-            padding: 12px 20px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            cursor: pointer;
-            transition: 0.15s;
-            border-bottom: 1px solid #1a2630;
-        }
-
-        .conv-item:hover {
-            background: #1a2a35;
-        }
-
-        .conv-item .avatar {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: #25d366;
-            color: #0b141a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 16px;
-            flex-shrink: 0;
-        }
-
-        .conv-item .conv-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .conv-item .conv-info .conv-name {
-            color: #e9edef;
-            font-size: 15px;
-            font-weight: 500;
-        }
-
-        .conv-item .conv-info .conv-last {
-            color: #8696a0;
-            font-size: 13px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .conv-item .conv-meta {
-            text-align: right;
-            flex-shrink: 0;
-        }
-
-        .conv-item .conv-meta .conv-time {
-            font-size: 11px;
-            color: #667781;
-        }
-
-        .conv-list .empty {
-            color: #667781;
-            font-size: 14px;
-            text-align: center;
-            padding: 40px 20px;
-        }
-
-        /* Messages */
-        .messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px 20px;
-            background: #131f28;
-            display: none;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .messages.active {
-            display: flex;
-        }
-
-        .messages .empty {
-            color: #667781;
-            font-size: 14px;
-            text-align: center;
-            margin: auto;
-        }
-
-        .messages .msg {
-            max-width: 80%;
-            padding: 8px 14px;
-            border-radius: 12px;
-            font-size: 14px;
-            line-height: 1.5;
-            word-wrap: break-word;
-            animation: fadeIn 0.2s ease;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(6px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .messages .msg.sent {
-            background: #25d366;
-            color: #0b141a;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-        }
-
-        .messages .msg.received {
-            background: #1e2a32;
-            color: #e9edef;
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-        }
-
-        .messages .msg .meta {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            font-size: 10px;
-            color: #667781;
-            margin-top: 2px;
-        }
-
-        .messages .msg.sent .meta {
-            color: #0b4a1a;
-        }
-
-        .messages .msg .sender {
-            font-size: 12px;
-            font-weight: 500;
-            color: #25d366;
-            margin-bottom: 2px;
-        }
-
-        .messages .msg.received .sender {
-            color: #58d3a8;
-        }
-
-        /* Back button */
-        .back-btn {
-            background: none;
-            border: none;
-            color: #25d366;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 4px 8px;
-        }
-
-        .back-btn:hover {
-            color: #1ebe5a;
-        }
-
-        /* Input Area */
-        .input-area {
-            padding: 12px 16px;
-            background: #1a2630;
-            border-top: 1px solid #2a3a45;
-            display: none;
-            gap: 10px;
-            flex-shrink: 0;
-            align-items: center;
-        }
-
-        .input-area.active {
-            display: flex;
-        }
-
-        .input-area .to-input {
-            flex: 1;
-            padding: 8px 12px;
-            background: #2a3a45;
-            border: 1px solid #3a4a55;
-            border-radius: 8px;
-            color: #e9edef;
-            font-size: 12px;
-            width: 100px;
-            flex-shrink: 0;
-        }
-
-        .input-area .to-input:focus {
-            outline: none;
-            border-color: #25d366;
-        }
-
-        .input-area .msg-input {
-            flex: 2;
-            padding: 8px 14px;
-            background: #2a3a45;
-            border: 1px solid #3a4a55;
-            border-radius: 8px;
-            color: #e9edef;
-            font-size: 13px;
-        }
-
-        .input-area .msg-input:focus {
-            outline: none;
-            border-color: #25d366;
-        }
-
-        .input-area .msg-input::placeholder {
-            color: #667781;
-        }
-
-        .input-area button {
-            padding: 8px 18px;
-            background: #25d366;
-            border: none;
-            border-radius: 8px;
-            color: #0b141a;
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            transition: 0.2s;
-            white-space: nowrap;
-        }
-
-        .input-area button:hover {
-            background: #1ebe5a;
-        }
-
-        /* Logs */
-        .log-area {
-            background: #0d1820;
-            padding: 8px 14px;
-            max-height: 80px;
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 10px;
-            color: #667781;
-            border-top: 1px solid #1a2630;
-            flex-shrink: 0;
-        }
-
-        .log-area .log-entry {
-            padding: 2px 0;
-            border-bottom: 1px solid #0f1a22;
-        }
-
-        .log-area .log-entry .highlight {
-            color: #25d366;
-        }
-
-        .log-area .log-entry .error {
-            color: #e74c3c;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        .flex-row {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .badge {
-            background: #2a3a45;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 10px;
-            color: #8696a0;
-        }
-
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #0d1820;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #2a3a45;
-            border-radius: 10px;
-        }
-
-        .conv-list .conv-item.active {
-            background: #1a2a35;
-            border-left: 3px solid #25d366;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stark Chat</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+  body { background:#0b141a; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+  .app {
+    width:100%; max-width:420px; height:95vh; background:#1e2a32; border-radius:24px;
+    overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.6);
+  }
+  .header {
+    background:linear-gradient(135deg,#1f2c34,#182129); padding:16px 20px; display:flex;
+    justify-content:space-between; align-items:center; border-bottom:1px solid #2a3a45; flex-shrink:0;
+  }
+  .header h1 { color:#e9edef; font-size:18px; font-weight:700; letter-spacing:.3px; }
+  .header .status { display:flex; align-items:center; gap:8px; font-size:12px; color:#8696a0; }
+  .header .status .dot { width:8px; height:8px; border-radius:50%; display:inline-block; transition:.2s; }
+  .header .status .dot.online { background:#25d366; box-shadow:0 0 6px #25d36699; }
+  .header .status .dot.offline { background:#667781; }
+
+  .auth-section { padding:24px 20px; flex-shrink:0; }
+  .auth-section .brand { text-align:center; color:#25d366; font-size:15px; font-weight:600; margin-bottom:18px; }
+  .auth-section .input-group { margin-bottom:12px; }
+  .auth-section label { display:block; font-size:11px; font-weight:600; color:#8696a0; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
+  .auth-section input {
+    width:100%; padding:11px 14px; background:#2a3a45; border:1px solid #3a4a55; border-radius:10px;
+    color:#e9edef; font-size:14px; transition:.2s;
+  }
+  .auth-section input:focus { outline:none; border-color:#25d366; background:#1e2a32; }
+  .auth-section input::placeholder { color:#667781; }
+  .auth-section .btn-row { display:flex; gap:10px; margin-top:6px; }
+  .auth-section .btn-row button { flex:1; padding:11px; border:none; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; transition:.2s; }
+  .btn-primary { background:#25d366; color:#0b141a; }
+  .btn-primary:hover { background:#1ebe5a; }
+  .btn-secondary { background:#2a3a45; color:#e9edef; }
+  .btn-secondary:hover { background:#3a4a55; }
+
+  .chat-area { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .chat-area .chat-header {
+    padding:12px 20px; background:#1f2c34; border-bottom:1px solid #2a3a45; display:flex;
+    justify-content:space-between; align-items:center; flex-shrink:0;
+  }
+  .chat-area .chat-header .chat-user { color:#e9edef; font-size:15px; font-weight:600; }
+  .chat-area .chat-header .chat-status { font-size:12px; color:#8696a0; }
+  .icon-btn { background:none; border:none; color:#25d366; font-size:13px; font-weight:700; cursor:pointer; padding:4px 8px; }
+  .icon-btn:hover { color:#1ebe5a; }
+
+  .group-panel { display:none; flex-direction:column; gap:10px; padding:14px 20px; background:#182129; border-bottom:1px solid #2a3a45; flex-shrink:0; }
+  .group-panel.active { display:flex; }
+  .group-panel .gp-title { font-size:11px; font-weight:700; color:#8696a0; text-transform:uppercase; letter-spacing:.5px; }
+  .group-panel .gp-row { display:flex; gap:8px; }
+  .group-panel input {
+    flex:1; padding:9px 12px; background:#2a3a45; border:1px solid #3a4a55; border-radius:8px;
+    color:#e9edef; font-size:13px;
+  }
+  .group-panel input:focus { outline:none; border-color:#25d366; }
+  .group-panel button { padding:9px 14px; background:#25d366; border:none; border-radius:8px; color:#0b141a; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap; }
+  .group-panel button:hover { background:#1ebe5a; }
+  .group-panel .gp-hint { font-size:11px; color:#667781; }
+
+  .conv-list { flex:1; overflow-y:auto; padding:8px 0; background:#131f28; }
+  .conv-item { padding:12px 20px; display:flex; align-items:center; gap:14px; cursor:pointer; transition:.15s; border-bottom:1px solid #1a2630; }
+  .conv-item:hover { background:#1a2a35; }
+  .conv-item.active { background:#1a2a35; border-left:3px solid #25d366; }
+  .conv-item .avatar {
+    width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,#25d366,#128c4a);
+    color:#0b141a; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; flex-shrink:0;
+  }
+  .conv-item .conv-info { flex:1; min-width:0; }
+  .conv-item .conv-info .conv-name { color:#e9edef; font-size:15px; font-weight:600; }
+  .conv-item .conv-info .conv-last { color:#8696a0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .conv-item .conv-meta { text-align:right; flex-shrink:0; }
+  .conv-item .conv-meta .conv-time { font-size:11px; color:#667781; }
+  .conv-list .empty { color:#667781; font-size:14px; text-align:center; padding:40px 20px; }
+
+  .messages {
+    flex:1; overflow-y:auto; padding:16px 20px; display:none; flex-direction:column; gap:6px;
+    background-color:#0d1418;
+    background-image:radial-gradient(#182229 1px, transparent 1px);
+    background-size:18px 18px;
+  }
+  .messages.active { display:flex; }
+  .messages .empty { color:#667781; font-size:14px; text-align:center; margin:auto; }
+  .messages .msg { max-width:78%; padding:8px 14px; border-radius:12px; font-size:14px; line-height:1.5; word-wrap:break-word; animation:fadeIn .18s ease; position:relative; }
+  @keyframes fadeIn { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .messages .msg.sent { background:#005c4b; color:#e9edef; align-self:flex-end; border-bottom-right-radius:4px; }
+  .messages .msg.received { background:#1e2a32; color:#e9edef; align-self:flex-start; border-bottom-left-radius:4px; }
+  .messages .msg .meta { display:flex; justify-content:flex-end; gap:6px; font-size:10px; color:#8fb9ae; margin-top:2px; align-items:center; }
+  .messages .msg.received .meta { color:#667781; }
+  .messages .msg .sender { font-size:12px; font-weight:600; color:#58d3a8; margin-bottom:2px; }
+
+  .status-icon { font-size:12px; }
+  .status-icon.sent { color:#8fb9ae; }
+  .status-icon.delivered { color:#8fb9ae; }
+  .status-icon.seen { color:#53bdeb; }
+  .status-icon.sending { color:#8fb9ae; font-style:italic; }
+
+  .typing-indicator { padding:4px 20px; font-size:12px; color:#25d366; font-style:italic; min-height:20px; flex-shrink:0; background:#131f28; }
+
+  .back-btn { background:none; border:none; color:#25d366; font-size:18px; cursor:pointer; padding:4px 8px; }
+  .back-btn:hover { color:#1ebe5a; }
+
+  .input-area { padding:12px 16px; background:#1f2c34; border-top:1px solid #2a3a45; display:none; gap:10px; flex-shrink:0; align-items:center; }
+  .input-area.active { display:flex; }
+  .input-area .to-input { flex:1; padding:8px 12px; background:#2a3a45; border:1px solid #3a4a55; border-radius:8px; color:#e9edef; font-size:12px; width:100px; flex-shrink:0; }
+  .input-area .msg-input { flex:2; padding:9px 14px; background:#2a3a45; border:1px solid #3a4a55; border-radius:20px; color:#e9edef; font-size:13px; }
+  .input-area .to-input:focus, .input-area .msg-input:focus { outline:none; border-color:#25d366; }
+  .input-area .msg-input::placeholder { color:#667781; }
+  .input-area button {
+    padding:9px 16px; background:#25d366; border:none; border-radius:50%; width:38px; height:38px;
+    color:#0b141a; font-weight:700; font-size:15px; cursor:pointer; transition:.2s; flex-shrink:0;
+  }
+  .input-area button:hover { background:#1ebe5a; }
+
+  .log-area {
+    background:#0d1820; padding:8px 14px; max-height:70px; overflow-y:auto;
+    font-family:'Courier New',monospace; font-size:10px; color:#667781; border-top:1px solid #1a2630; flex-shrink:0;
+  }
+  .log-area .log-entry { padding:2px 0; border-bottom:1px solid #0f1a22; }
+  .log-area .log-entry .highlight { color:#25d366; }
+  .log-area .log-entry .error { color:#e74c3c; }
+
+  .hidden { display:none !important; }
+  .flex-row { display:flex; gap:8px; align-items:center; }
+  .badge { background:#2a3a45; padding:2px 10px; border-radius:20px; font-size:10px; color:#8696a0; }
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:#0d1820; }
+  ::-webkit-scrollbar-thumb { background:#2a3a45; border-radius:10px; }
+</style>
 </head>
 <body>
+<div class="app" id="app">
+  <div class="header">
+    <h1>Stark Chat</h1>
+    <div class="status">
+      <span class="dot offline" id="statusDot"></span>
+      <span id="statusText">Offline</span>
+      <span class="badge" id="connBadge">WS: --</span>
+    </div>
+  </div>
 
-    <div class="app" id="app">
-        <!-- Header -->
-        <div class="header">
-            <h1>Stark Chat</h1>
-            <div class="status">
-                <span class="dot offline" id="statusDot"></span>
-                <span id="statusText">Offline</span>
-                <span class="badge" id="connBadge">WS: --</span>
-            </div>
-        </div>
+  <div class="auth-section" id="authSection">
+    <div class="brand">Sign in to continue</div>
+    <div class="input-group"><label>Phone</label><input id="phoneInput" placeholder="+919876543210" value="+919876543210" /></div>
+    <div class="input-group"><label>Password</label><input id="passwordInput" type="password" placeholder="••••••••" value="password123" /></div>
+    <div class="input-group"><label>Name</label><input id="nameInput" placeholder="Your name" value="Test User" /></div>
+    <div class="btn-row">
+      <button class="btn-secondary" id="signupBtn">Sign Up</button>
+      <button class="btn-primary" id="loginBtn">Login</button>
+    </div>
+  </div>
 
-        <!-- Auth Section -->
-        <div class="auth-section" id="authSection">
-            <div class="input-group">
-                <label>Phone</label>
-                <input id="phoneInput" placeholder="+919876543210" value="+919876543210" />
-            </div>
-            <div class="input-group">
-                <label>Password</label>
-                <input id="passwordInput" type="password" placeholder="••••••••" value="password123" />
-            </div>
-            <div class="input-group">
-                <label>Name</label>
-                <input id="nameInput" placeholder="Your name" value="Test User" />
-            </div>
-            <div class="btn-row">
-                <button class="btn-secondary" id="signupBtn">Sign Up</button>
-                <button class="btn-primary" id="loginBtn">Login</button>
-            </div>
-        </div>
-
-        <!-- Chat Area -->
-        <div class="chat-area hidden" id="chatArea">
-            <div class="chat-header">
-                <div class="flex-row">
-                    <button class="back-btn hidden" id="backBtn">&#8592;</button>
-                    <span class="chat-user" id="chatUser">Chats</span>
-                </div>
-                <span class="chat-status" id="chatStatus">Connected</span>
-            </div>
-
-            <!-- Conversation List -->
-            <div class="conv-list" id="convList">
-                <div class="empty">No conversations yet.<br />Start a chat!</div>
-            </div>
-
-            <!-- Messages -->
-            <div class="messages" id="messages">
-                <div class="empty">Select a conversation</div>
-            </div>
-
-            <!-- Input Area -->
-            <div class="input-area" id="inputArea">
-                <input class="to-input" id="recipientInput" placeholder="To" value="+919999999999" />
-                <input class="msg-input" id="messageInput" placeholder="Type a message..." />
-                <button id="sendBtn">Send</button>
-            </div>
-        </div>
-
-        <!-- Logs -->
-        <div class="log-area" id="logArea">
-            <div class="log-entry">[system] Ready</div>
-        </div>
+  <div class="chat-area hidden" id="chatArea">
+    <div class="chat-header">
+      <div class="flex-row">
+        <button class="back-btn hidden" id="backBtn">&#8592;</button>
+        <span class="chat-user" id="chatUser">Chats</span>
+      </div>
+      <div class="flex-row">
+        <button class="icon-btn hidden" id="groupToggleBtn">+ Group</button>
+        <span class="chat-status" id="chatStatus">Connected</span>
+      </div>
     </div>
 
-    <script>
-        // ============================================================
-        // STATE
-        // ============================================================
-        const state = {
-            ws: null,
-            token: null,
-            user: null,
-            isConnected: false,
-            messages: [],
-            myPhone: null,
-            conversations: [],
-            selectedConv: null,
-            activeConvId: null,
-        };
+    <div class="group-panel" id="groupPanel">
+      <div id="createGroupSection">
+        <div class="gp-title">Create a group</div>
+        <div class="gp-row" style="margin-top:6px">
+          <input id="newGroupName" placeholder="Group name" />
+          <button id="createGroupBtn">Create</button>
+        </div>
+      </div>
+      <div id="addMemberSection" class="hidden">
+        <div class="gp-title">Add member to "<span id="activeRoomName"></span>" (room #<span id="activeRoomId"></span>)</div>
+        <div class="gp-row" style="margin-top:6px">
+          <input id="memberPhoneInput" placeholder="+91..." />
+          <button id="addMemberBtn">Add</button>
+        </div>
+        <div class="gp-hint">Only the group admin can add members.</div>
+      </div>
+    </div>
 
-        // ============================================================
-        // DOM REFS
-        // ============================================================
-        const $ = (id) => document.getElementById(id);
-        const logArea = $('logArea');
-        const messages = $('messages');
-        const convList = $('convList');
-        const statusDot = $('statusDot');
-        const statusText = $('statusText');
-        const connBadge = $('connBadge');
+    <div class="conv-list" id="convList">
+      <div class="empty">No conversations yet.<br />Start a chat!</div>
+    </div>
 
-        const authSection = $('authSection');
-        const chatArea = $('chatArea');
-        const chatUser = $('chatUser');
-        const chatStatus = $('chatStatus');
-        const backBtn = $('backBtn');
+    <div class="messages" id="messages">
+      <div class="empty">Select a conversation</div>
+    </div>
 
-        const phoneInput = $('phoneInput');
-        const passwordInput = $('passwordInput');
-        const nameInput = $('nameInput');
-        const recipientInput = $('recipientInput');
-        const messageInput = $('messageInput');
+    <div class="typing-indicator" id="typingIndicator"></div>
 
-        const signupBtn = $('signupBtn');
-        const loginBtn = $('loginBtn');
-        const sendBtn = $('sendBtn');
+    <div class="input-area" id="inputArea">
+      <input class="to-input" id="recipientInput" placeholder="To" value="+919999999999" />
+      <input class="msg-input" id="messageInput" placeholder="Type a message..." />
+      <button id="sendBtn">&#10148;</button>
+    </div>
+  </div>
 
-        // ============================================================
-        // LOGGING
-        // ============================================================
-        function log(message, type = 'info') {
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            const timestamp = new Date().toLocaleTimeString();
-            const cls = type === 'error' ? 'error' : (type === 'highlight' ? 'highlight' : '');
-            entry.innerHTML = `<span class="${cls}">[${timestamp}] ${message}</span>`;
-            logArea.appendChild(entry);
-            logArea.scrollTop = logArea.scrollHeight;
-            if (logArea.children.length > 50) {
-                logArea.removeChild(logArea.firstChild);
-            }
+  <div class="log-area" id="logArea"><div class="log-entry">[system] Ready</div></div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  ws: null, token: null, myPhone: null,
+  conversations: [], activeConvId: null, selectedConv: null,
+  messages: [], pendingMessages: new Map(),
+  typingTimeout: null, lastRoomId: null, pendingGroupName: null,
+};
+
+// ============================================================
+// DOM REFS
+// ============================================================
+const $ = (id) => document.getElementById(id);
+const logArea = $('logArea'), messages = $('messages'), convList = $('convList');
+const statusDot = $('statusDot'), statusText = $('statusText'), connBadge = $('connBadge');
+const authSection = $('authSection'), chatArea = $('chatArea'), chatUser = $('chatUser');
+const chatStatus = $('chatStatus'), backBtn = $('backBtn'), typingIndicator = $('typingIndicator');
+const phoneInput = $('phoneInput'), passwordInput = $('passwordInput'), nameInput = $('nameInput');
+const recipientInput = $('recipientInput'), messageInput = $('messageInput');
+const signupBtn = $('signupBtn'), loginBtn = $('loginBtn'), sendBtn = $('sendBtn');
+const groupToggleBtn = $('groupToggleBtn'), groupPanel = $('groupPanel');
+const newGroupName = $('newGroupName'), createGroupBtn = $('createGroupBtn');
+const createGroupSection = $('createGroupSection'), addMemberSection = $('addMemberSection');
+const activeRoomName = $('activeRoomName'), activeRoomId = $('activeRoomId');
+const memberPhoneInput = $('memberPhoneInput'), addMemberBtn = $('addMemberBtn');
+
+// ============================================================
+// LOGGING
+// ============================================================
+function log(message, type = 'info') {
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const cls = type === 'error' ? 'error' : (type === 'highlight' ? 'highlight' : '');
+  entry.innerHTML = `<span class="${cls}">[${new Date().toLocaleTimeString()}] ${message}</span>`;
+  logArea.appendChild(entry);
+  logArea.scrollTop = logArea.scrollHeight;
+  if (logArea.children.length > 50) logArea.removeChild(logArea.firstChild);
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function setStatus(connected) {
+  statusDot.className = `dot ${connected ? 'online' : 'offline'}`;
+  statusText.textContent = connected ? 'Online' : 'Offline';
+  connBadge.textContent = connected ? 'WS: ON' : 'WS: OFF';
+}
+function showAuth(show) {
+  authSection.classList.toggle('hidden', !show);
+  chatArea.classList.toggle('hidden', show);
+  if (!show) loadConversations();
+}
+function getStatusIcon(status) {
+  if (status === 'seen') return { icon: '✓✓', class: 'seen' };
+  if (status === 'delivered') return { icon: '✓✓', class: 'delivered' };
+  if (status === 'sent') return { icon: '✓', class: 'sent' };
+  return { icon: '◌', class: 'sending' };
+}
+
+// ============================================================
+// CONVERSATIONS
+// ============================================================
+const API_BASE = 'http://localhost:8000';
+
+async function httpPost(endpoint, body, withToken = false) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (withToken) headers['token'] = state.token;
+  const res = await fetch(`${API_BASE}${endpoint}`, { method: 'POST', headers, body: JSON.stringify(body || {}) });
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return { raw: text }; }
+}
+
+async function loadConversations() {
+  try {
+    const data = await httpPost('/myconversation', {}, true);
+    let convs = null;
+    if (Array.isArray(data)) {
+      convs = data;
+    } else if (data.raw) {
+      const trimmed = data.raw.trim();
+      // /myconversation sends plain text ("you dont have any active
+      // conversations present!") when there's nothing to show — only
+      // try to parse it as JSON if it actually looks like JSON.
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        try { convs = JSON.parse(trimmed); } catch { convs = null; }
+      }
+    }
+    if (!convs) { convList.innerHTML = '<div class="empty">No conversations yet.<br />Start a chat!</div>'; return; }
+    state.conversations = convs;
+    renderConversations(convs);
+  } catch (e) {
+    log('Failed to load conversations: ' + e.message, 'error');
+  }
+}
+
+function renderConversations(convs) {
+  if (!convs || convs.length === 0) {
+    convList.innerHTML = '<div class="empty">No conversations yet.<br />Start a chat!</div>';
+    return;
+  }
+  let html = '';
+  for (const conv of convs) {
+    const otherPhone = conv.other_user_phone || (conv.user1_phone === state.myPhone ? conv.user2_phone : conv.user1_phone);
+    const otherName = conv.other_user_name || otherPhone;
+    const initial = (otherName || '?').charAt(0).toUpperCase();
+    const time = conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    html += `
+      <div class="conv-item" data-id="${conv.id}" data-phone="${otherPhone}" data-name="${otherName}">
+        <div class="avatar">${initial}</div>
+        <div class="conv-info">
+          <div class="conv-name">${otherName}</div>
+          <div class="conv-last">${conv.last_message || 'No messages yet'}</div>
+        </div>
+        <div class="conv-meta"><div class="conv-time">${time}</div></div>
+      </div>`;
+  }
+  convList.innerHTML = html;
+  document.querySelectorAll('.conv-item').forEach(el => {
+    el.addEventListener('click', () => openConversation(el.dataset.id, el.dataset.phone, el.dataset.name));
+  });
+}
+
+// ============================================================
+// OPEN CONVERSATION / LOAD MESSAGES
+// ============================================================
+async function openConversation(convId, phone, name) {
+  state.activeConvId = convId;
+  state.selectedConv = phone;
+  chatUser.textContent = name || phone;
+  backBtn.classList.remove('hidden');
+  groupToggleBtn.classList.add('hidden');
+  groupPanel.classList.remove('active');
+  messages.classList.add('active');
+  messages.innerHTML = '<div class="empty">Loading messages...</div>';
+  recipientInput.value = phone;
+  $('inputArea').classList.add('active');
+  document.querySelectorAll('.conv-item').forEach(el => el.classList.toggle('active', el.dataset.id === convId));
+
+  await loadMessages(convId);
+
+  if (state.pendingMessages.has(String(convId))) {
+    for (const msg of state.pendingMessages.get(String(convId))) {
+      addMessageUI(msg, msg.sender_phone === state.myPhone);
+      if (msg.sender_phone !== state.myPhone && msg.id) markSeen(msg.id, msg.sender_phone);
+    }
+    state.pendingMessages.delete(String(convId));
+  }
+}
+
+async function loadMessages(convId) {
+  try {
+    const res = await fetch(`${API_BASE}/getmessages`, {
+      method: 'POST',
+      headers: { 'token': state.token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId: convId })
+    });
+    const data = await res.json();
+    messages.innerHTML = '';
+    if (data.success && data.messages && data.messages.length > 0) {
+      for (const msg of data.messages) {
+        const isSent = msg.sender_phone === state.myPhone;
+        addMessageUI(msg, isSent);
+        // Mark anything the other person sent us as seen, now that we're viewing it
+        if (!isSent && msg.status !== 'seen') markSeen(msg.id, msg.sender_phone);
+      }
+    } else {
+      messages.innerHTML = '<div class="empty">No messages yet.<br />Start the conversation!</div>';
+    }
+  } catch (e) {
+    log('Failed to load messages: ' + e.message, 'error');
+    messages.innerHTML = '<div class="empty">Error loading messages</div>';
+  }
+}
+
+// ============================================================
+// MESSAGE RENDERING
+// ============================================================
+function addMessageUI(msg, isSent) {
+  const empty = messages.querySelector('.empty');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = `msg ${isSent ? 'sent' : 'received'}`;
+  if (msg.id) div.dataset.messageId = msg.id;
+  // NOTE: dataset.tempId writes attribute "data-temp-id" — read it back the same way.
+  if (msg.tempId) div.dataset.tempId = msg.tempId;
+
+  const senderName = msg.sender_name || (isSent ? 'You' : (msg.sender_phone || 'Unknown'));
+  const time = new Date(msg.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const status = msg.status || (isSent ? 'sending' : 'received');
+  const statusIcon = getStatusIcon(status);
+  const statusHtml = isSent ? `<span class="status-icon ${statusIcon.class}">${statusIcon.icon}</span>` : '';
+
+  div.innerHTML = `
+    <div class="sender">${senderName}</div>
+    ${escapeHtml(msg.content || msg.message || msg.text || '')}
+    <div class="meta"><span>${time}</span>${statusHtml}</div>`;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+
+  if (msg.id && !state.messages.find(m => m.id === msg.id)) {
+    state.messages.push({
+      id: msg.id, tempId: msg.tempId || null,
+      content: msg.content || msg.message || msg.text,
+      sender_phone: msg.sender_phone || msg.from,
+      receiver_phone: msg.receiver_phone,
+      status: msg.status || (isSent ? 'sent' : 'received'),
+      created_at: msg.created_at || new Date().toISOString()
+    });
+  }
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// Query the attribute exactly as `dataset.tempId` actually writes it — "data-temp-id".
+function updateMessageStatus(tempId, realId, status) {
+  const msgEl = messages.querySelector(`[data-temp-id="${tempId}"]`);
+  if (msgEl) {
+    setBubbleStatus(msgEl, status);
+    if (realId) {
+      msgEl.dataset.messageId = realId;
+      delete msgEl.dataset.tempId;
+    }
+    log('Status updated to: ' + status, 'highlight');
+  } else {
+    log('Could not find bubble for tempId ' + tempId, 'error');
+  }
+
+  const msgState = state.messages.find(m => m.tempId === tempId);
+  if (msgState) {
+    msgState.id = realId || msgState.id;
+    msgState.status = status;
+    msgState.tempId = null;
+  }
+}
+
+// Used both for tempId-based updates (sent/delivered) and messageId-based updates (seen)
+function setBubbleStatus(msgEl, status) {
+  const statusSpan = msgEl.querySelector('.status-icon');
+  if (!statusSpan) return;
+  const statusIcon = getStatusIcon(status);
+  statusSpan.textContent = statusIcon.icon;
+  statusSpan.className = `status-icon ${statusIcon.class}`;
+}
+
+function updateSeenStatus(messageId) {
+  const msgEl = messages.querySelector(`[data-message-id="${messageId}"]`);
+  if (msgEl) setBubbleStatus(msgEl, 'seen');
+  const msgState = state.messages.find(m => String(m.id) === String(messageId));
+  if (msgState) msgState.status = 'seen';
+}
+
+function markSeen(messageId, otherPhone) {
+  if (!messageId || !otherPhone) return;
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+  state.ws.send(JSON.stringify({ event: 'seen', data: { messageId, rec_phone: otherPhone } }));
+}
+
+// ============================================================
+// BACK BUTTON
+// ============================================================
+backBtn.addEventListener('click', () => {
+  state.activeConvId = null;
+  state.selectedConv = null;
+  chatUser.textContent = 'Chats';
+  backBtn.classList.add('hidden');
+  groupToggleBtn.classList.remove('hidden');
+  messages.classList.remove('active');
+  messages.innerHTML = '<div class="empty">Select a conversation</div>';
+  $('inputArea').classList.remove('active');
+  document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
+  loadConversations();
+});
+
+// ============================================================
+// GROUPS / ROOMS
+// ============================================================
+groupToggleBtn.addEventListener('click', () => {
+  groupPanel.classList.toggle('active');
+  // Reset to the "create" step each time the panel is reopened fresh
+  if (groupPanel.classList.contains('active') && !state.lastRoomId) {
+    createGroupSection.classList.remove('hidden');
+    addMemberSection.classList.add('hidden');
+  }
+});
+
+createGroupBtn.addEventListener('click', () => {
+  const groupName = newGroupName.value.trim();
+  if (!groupName) { log('Enter a group name', 'error'); return; }
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { log('Not connected to WebSocket', 'error'); return; }
+  state.pendingGroupName = groupName;
+  state.ws.send(JSON.stringify({
+    event: 'create-room',
+    data: { sender_phone: state.myPhone, group_name: groupName, tempid: 'room_' + Date.now() }
+  }));
+  log('Creating group "' + groupName + '"...');
+});
+
+addMemberBtn.addEventListener('click', () => {
+  const memberPhone = memberPhoneInput.value.trim();
+  if (!state.lastRoomId) { log('Create a group first', 'error'); return; }
+  if (!memberPhone) { log('Enter a phone number', 'error'); return; }
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { log('Not connected to WebSocket', 'error'); return; }
+  state.ws.send(JSON.stringify({
+    event: 'addtoroom',
+    data: { roomId: state.lastRoomId, receiver_phone: memberPhone, sender_phone: state.myPhone }
+  }));
+  log('Adding ' + memberPhone + ' to room ' + state.lastRoomId + '...');
+  memberPhoneInput.value = '';
+});
+
+// ============================================================
+// AUTH
+// ============================================================
+signupBtn.addEventListener('click', async () => {
+  const phone = phoneInput.value.trim(), password = passwordInput.value.trim(), name = nameInput.value.trim();
+  if (!phone || !password || !name) { log('Please fill all fields', 'error'); return; }
+  log(`Signing up ${phone}...`);
+  try {
+    const res = await httpPost('/signup', { phone, password, name });
+    log(res.message || 'Signup successful', 'highlight');
+  } catch (e) { log('Signup error: ' + e.message, 'error'); }
+});
+
+loginBtn.addEventListener('click', async () => {
+  const phone = phoneInput.value.trim(), password = passwordInput.value.trim();
+  if (!phone || !password) { log('Enter phone and password', 'error'); return; }
+  log(`Logging in ${phone}...`);
+  try {
+    const res = await httpPost('/login', { phone, password });
+    if (res.token) {
+      state.token = res.token;
+      state.myPhone = phone;
+      chatUser.textContent = 'Chats';
+      groupToggleBtn.classList.remove('hidden');
+      log('Login successful', 'highlight');
+      showAuth(false);
+      setStatus(false);
+      chatStatus.textContent = 'Authenticated';
+      connectWebSocket();
+    } else {
+      log('Login failed: ' + (res.message || res.raw || 'unknown error'), 'error');
+    }
+  } catch (e) { log('Login error: ' + e.message, 'error'); }
+});
+passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') loginBtn.click(); });
+
+// ============================================================
+// WEBSOCKET
+// ============================================================
+function connectWebSocket() {
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) { log('Already connected'); return; }
+  if (!state.token) { log('No token. Login first.', 'error'); return; }
+
+  log('Connecting WebSocket...');
+  state.ws = new WebSocket('ws://localhost:8080');
+
+  state.ws.onopen = () => {
+    log('WebSocket opened', 'highlight');
+    setStatus(true);
+    chatStatus.textContent = 'Connected';
+    state.ws.send(JSON.stringify({ event: 'auth', data: state.token }));
+    log('Auth sent');
+  };
+
+  state.ws.onmessage = (event) => {
+    let msg;
+    try { msg = JSON.parse(event.data); } catch { log('Raw: ' + event.data.slice(0, 60)); return; }
+
+    log('Received: ' + JSON.stringify(msg).slice(0, 80));
+
+    // Auth rejected server-side
+    if (msg.event === 'auth' && msg.message) {
+      log('Auth failed: ' + msg.message, 'error');
+      return;
+    }
+
+    // Incoming chat message
+    if (msg.event === 'chat') {
+      const contentData = msg.content || msg.messageResult || msg;
+      const isSent = contentData.sender_phone === state.myPhone;
+      if (!isSent) {
+        const convId = contentData.conversation_id;
+        if (String(convId) === String(state.activeConvId)) {
+          addMessageUI(contentData, false);
+          if (contentData.id) markSeen(contentData.id, contentData.sender_phone);
+        } else {
+          const key = String(convId);
+          const list = state.pendingMessages.get(key) || [];
+          list.push(contentData);
+          state.pendingMessages.set(key, list);
         }
-
-        // ============================================================
-        // UI HELPERS
-        // ============================================================
-        function setStatus(connected) {
-            state.isConnected = connected;
-            statusDot.className = `dot ${connected ? 'online' : 'offline'}`;
-            statusText.textContent = connected ? 'Online' : 'Offline';
-            connBadge.textContent = connected ? 'WS: ON' : 'WS: OFF';
-        }
-
-        function showAuth(show) {
-            authSection.classList.toggle('hidden', !show);
-            chatArea.classList.toggle('hidden', show);
-            if (!show) {
-                loadConversations();
-            }
-        }
-
-        function setMyPhone(phone) {
-            state.myPhone = phone;
-            chatUser.textContent = 'Chats';
-        }
-
-        // ============================================================
-        // CONVERSATIONS
-        // ============================================================
-        async function loadConversations() {
-            try {
-                const response = await fetch('http://localhost:8000/myconversation', {
-                    method: 'POST',
-                    headers: {
-                        'token': state.token,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const data = await response.text();
-
-                if (data === 'you dont have any active conversations present!') {
-                    convList.innerHTML = '<div class="empty">No conversations yet.<br />Start a chat!</div>';
-                    return;
-                }
-
-                try {
-                    const convs = JSON.parse(data);
-                    state.conversations = convs;
-                    renderConversations(convs);
-                } catch (e) {
-                    log('Error parsing conversations: ' + e.message, 'error');
-                }
-
-            } catch (error) {
-                log('Failed to load conversations: ' + error.message, 'error');
-            }
-        }
-
-        function renderConversations(convs) {
-            if (!convs || convs.length === 0) {
-                convList.innerHTML = '<div class="empty">No conversations yet.<br />Start a chat!</div>';
-                return;
-            }
-
-            let html = '';
-            for (const conv of convs) {
-                const otherPhone = conv.other_user_phone || (conv.user1_phone === state.myPhone ? conv.user2_phone : conv
-                    .user1_phone);
-                const otherName = conv.other_user_name || otherPhone;
-                const initial = otherName.charAt(0).toUpperCase();
-                const time = conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString() : '';
-
-                html += `
-                    <div class="conv-item" data-id="${conv.id}" data-phone="${otherPhone}" data-name="${otherName}">
-                        <div class="avatar">${initial}</div>
-                        <div class="conv-info">
-                            <div class="conv-name">${otherName}</div>
-                            <div class="conv-last">${conv.last_message || 'No messages yet'}</div>
-                        </div>
-                        <div class="conv-meta">
-                            <div class="conv-time">${time}</div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            convList.innerHTML = html;
-
-            document.querySelectorAll('.conv-item').forEach(el => {
-                el.addEventListener('click', () => {
-                    const id = el.dataset.id;
-                    const phone = el.dataset.phone;
-                    const name = el.dataset.name;
-                    openConversation(id, phone, name);
-                });
-            });
-        }
-
-        // ============================================================
-        // OPEN CONVERSATION
-        // ============================================================
-        async function openConversation(convId, phone, name) {
-            state.activeConvId = convId;
-            state.selectedConv = phone;
-
-            chatUser.textContent = name || phone;
-            backBtn.classList.remove('hidden');
-
-            messages.classList.add('active');
-            messages.innerHTML = '<div class="empty">Loading messages...</div>';
-
-            recipientInput.value = phone;
-            document.getElementById('inputArea').classList.add('active');
-
-            document.querySelectorAll('.conv-item').forEach(el => {
-                el.classList.toggle('active', el.dataset.id === convId);
-            });
-
-            await loadMessages(convId);
-        }
-
-        // ============================================================
-        // LOAD MESSAGES
-        // ============================================================
-        async function loadMessages(convId) {
-            try {
-                const response = await fetch('http://localhost:8000/getmessages', {
-                    method: 'POST',
-                    headers: {
-                        'token': state.token,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ conversationId: convId })
-                });
-
-                const data = await response.json();
-
-                messages.innerHTML = '';
-
-                if (data.success && data.messages && data.messages.length > 0) {
-                    for (const msg of data.messages) {
-                        const isSent = msg.sender_phone === state.myPhone;
-                        addMessageUI(msg, isSent);
-                    }
-                } else {
-                    messages.innerHTML = '<div class="empty">No messages yet.<br />Start the conversation!</div>';
-                }
-
-            } catch (error) {
-                log('Failed to load messages: ' + error.message, 'error');
-                messages.innerHTML = '<div class="empty">Error loading messages</div>';
-            }
-        }
-
-        // ============================================================
-        // BACK BUTTON
-        // ============================================================
-        backBtn.addEventListener('click', () => {
-            state.activeConvId = null;
-            state.selectedConv = null;
-            chatUser.textContent = 'Chats';
-            backBtn.classList.add('hidden');
-            messages.classList.remove('active');
-            messages.innerHTML = '<div class="empty">Select a conversation</div>';
-            document.getElementById('inputArea').classList.remove('active');
-            document.querySelectorAll('.conv-item').forEach(el => {
-                el.classList.remove('active');
-            });
-            loadConversations();
-        });
-
-        // ============================================================
-        // API HELPERS
-        // ============================================================
-        const API_BASE = 'http://localhost:8000';
-
-        async function httpPost(endpoint, body) {
-            const res = await fetch(`${API_BASE}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            const text = await res.text();
-            try { return JSON.parse(text); } catch { return { raw: text }; }
-        }
-
-        // ============================================================
-        // AUTH
-        // ============================================================
-        signupBtn.addEventListener('click', async () => {
-            const phone = phoneInput.value.trim();
-            const password = passwordInput.value.trim();
-            const name = nameInput.value.trim();
-
-            if (!phone || !password || !name) {
-                log('Please fill all fields', 'error');
-                return;
-            }
-
-            log(`Signing up ${phone}...`, 'info');
-            try {
-                const res = await httpPost('/signup', { phone, password, name });
-                log(res.message || 'Signup successful', 'highlight');
-            } catch (e) {
-                log('Signup error: ' + e.message, 'error');
-            }
-        });
-
-        loginBtn.addEventListener('click', async () => {
-            const phone = phoneInput.value.trim();
-            const password = passwordInput.value.trim();
-
-            if (!phone || !password) {
-                log('Enter phone and password', 'error');
-                return;
-            }
-
-            log(`Logging in ${phone}...`, 'info');
-            try {
-                const res = await httpPost('/login', { phone, password });
-
-                if (res.token) {
-                    state.token = res.token;
-                    state.user = { phone };
-                    state.myPhone = phone;
-
-                    log('Login successful', 'highlight');
-                    showAuth(false);
-                    setMyPhone(phone);
-                    setStatus(false);
-                    chatStatus.textContent = 'Authenticated';
-
-                    connectWebSocket();
-                    loadConversations();
-                } else if (res.message) {
-                    log('Login failed: ' + res.message, 'error');
-                } else {
-                    log('Login failed', 'error');
-                }
-            } catch (e) {
-                log('Login error: ' + e.message, 'error');
-            }
-        });
-
-        passwordInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') loginBtn.click();
-        });
-
-        // ============================================================
-        // WEBSOCKET
-        // ============================================================
-        function connectWebSocket() {
-            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-                log('Already connected', 'info');
-                return;
-            }
-
-            if (!state.token) {
-                log('No token. Login first.', 'error');
-                return;
-            }
-
-            log('Connecting WebSocket...', 'info');
-            state.ws = new WebSocket('ws://localhost:8080');
-
-            state.ws.onopen = () => {
-                log('WebSocket opened', 'highlight');
-                setStatus(true);
-                chatStatus.textContent = 'Connected';
-
-                state.ws.send(JSON.stringify({
-                    event: 'auth',
-                    data: state.token
-                }));
-                log('Auth sent', 'info');
-            };
-
-            state.ws.onmessage = (event) => {
-                try {
-                    const msg = JSON.parse(event.data);
-                    log('Received: ' + JSON.stringify(msg).slice(0, 80), 'info');
-
-                    if (msg.event === 'auth_success') {
-                        log('Authenticated by WS server', 'highlight');
-                        chatStatus.textContent = 'Ready';
-                    }
-
-                    if (msg.event === 'newMessage' || msg.message || msg.content) {
-                        const data = msg.data || msg;
-                        const isSent = data.sender_phone === state.myPhone;
-                        addMessageUI(data, isSent);
-                    }
-
-                    if (msg.event === 'messageStatus') {
-                        log('Status: ' + msg.data.status, 'highlight');
-                    }
-
-                    if (msg.event === 'error') {
-                        log('WS Error: ' + msg.message, 'error');
-                    }
-
-                } catch (e) {
-                    log('Raw: ' + event.data.slice(0, 60), 'info');
-                }
-            };
-
-            state.ws.onclose = () => {
-                log('WebSocket closed', 'error');
-                setStatus(false);
-                chatStatus.textContent = 'Disconnected';
-                state.ws = null;
-            };
-
-            state.ws.onerror = (error) => {
-                log('WS error: ' + error.message, 'error');
-            };
-        }
-
-        // ============================================================
-        // SEND MESSAGE
-        // ============================================================
-        function sendMessage() {
-            if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-                log('Not connected to WebSocket', 'error');
-                return;
-            }
-
-            const recipient = recipientInput.value.trim();
-            const text = messageInput.value.trim();
-
-            if (!recipient || !text) {
-                log('Enter recipient and message', 'error');
-                return;
-            }
-
-            const payload = {
-                event: 'chat',
-                data: {
-                    sender_phonenum: state.myPhone,
-                    reciever_phonenum: recipient,
-                    content: text,
-                    sender_name: 'You'
-                }
-            };
-
-            state.ws.send(JSON.stringify(payload));
-            log('Sent: ' + text, 'highlight');
-
-            addMessageUI({
-                content: text,
-                sender_phone: state.myPhone,
-                sender_name: 'You',
-                timestamp: Date.now()
-            }, true);
-
-            messageInput.value = '';
-        }
-
-        function addMessageUI(msg, isSent) {
-            const empty = messages.querySelector('.empty');
-            if (empty) empty.remove();
-
-            const div = document.createElement('div');
-            div.className = `msg ${isSent ? 'sent' : 'received'}`;
-
-            const senderName = msg.sender_name || (isSent ? 'You' : msg.sender_phone || 'Unknown');
-            const time = new Date(msg.timestamp || msg.created_at || Date.now()).toLocaleTimeString();
-
-            div.innerHTML = `
-                <div class="sender">${senderName}</div>
-                ${msg.content || msg.message || msg.text || ''}
-                <div class="meta">
-                    <span>${time}</span>
-                    ${isSent ? '✓' : ''}
-                </div>
-            `;
-            messages.appendChild(div);
-            messages.scrollTop = messages.scrollHeight;
-        }
-
-        sendBtn.addEventListener('click', sendMessage);
-
-        messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        // ============================================================
-        // INIT
-        // ============================================================
-        log('Stark Chat ready', 'highlight');
-        log('HTTP: ' + API_BASE, 'info');
-        log('WS: ws://localhost:8080', 'info');
-        log('Login to start chatting', 'info');
-    </script>
-
+        loadConversations();
+      }
+    }
+
+    // Delivery/sent tick for our own outgoing messages
+    if (msg.status === 'sent' || msg.status === 'delivered') {
+      if (msg.tempid) updateMessageStatus(msg.tempid, msg.correctid, msg.status);
+    }
+
+    // Someone read our message
+    if (msg.event === 'seen' && msg.messageId) {
+      updateSeenStatus(msg.messageId);
+    }
+
+    if (msg.event === 'typing') {
+      typingIndicator.textContent = (msg.sender_phone || 'Someone') + ' is typing…';
+      clearTimeout(state.typingTimeout);
+      state.typingTimeout = setTimeout(() => { typingIndicator.textContent = ''; }, 2000);
+    }
+
+    // Group / room events
+    if (msg.message === 'room created succesfully') {
+      state.lastRoomId = msg.correctid;
+      activeRoomId.textContent = msg.correctid;
+      activeRoomName.textContent = state.pendingGroupName || '';
+      createGroupSection.classList.add('hidden');
+      addMemberSection.classList.remove('hidden');
+      newGroupName.value = '';
+      log('Group created (room #' + msg.correctid + ')', 'highlight');
+    }
+    if (msg.message === 'user added to the room') {
+      log('Member added to the room', 'highlight');
+    }
+    if (msg.event === 'added to a room') {
+      log(`You were added to "${msg.groupName}" by ${msg.adminPhone}`, 'highlight');
+    }
+    if (msg.event === 'unathorized action' || msg.event === 'invalid room creds') {
+      log(msg.message, 'error');
+    }
+    if (msg.event === 'error') {
+      log('WS Error: ' + (msg.err_msg || msg.message), 'error');
+    }
+  };
+
+  state.ws.onclose = () => {
+    log('WebSocket closed', 'error');
+    setStatus(false);
+    chatStatus.textContent = 'Disconnected';
+    state.ws = null;
+  };
+  state.ws.onerror = () => log('WebSocket error', 'error');
+}
+
+// ============================================================
+// SEND MESSAGE + TYPING
+// ============================================================
+function sendMessage() {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { log('Not connected to WebSocket', 'error'); return; }
+  const recipient = recipientInput.value.trim(), text = messageInput.value.trim();
+  if (!recipient || !text) { log('Enter recipient and message', 'error'); return; }
+
+  const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+
+  addMessageUI({
+    tempId, content: text, sender_phone: state.myPhone, sender_name: 'You',
+    status: 'sending', created_at: new Date().toISOString()
+  }, true);
+
+  state.ws.send(JSON.stringify({
+    event: 'chat',
+    data: { sender_phonenum: state.myPhone, reciever_phonenum: recipient, content: text, tempid: tempId }
+  }));
+
+  log('Sent: ' + text, 'highlight');
+  messageInput.value = '';
+}
+sendBtn.addEventListener('click', sendMessage);
+messageInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
+
+// Lightweight typing event, throttled
+let lastTypingSent = 0;
+messageInput.addEventListener('input', () => {
+  const recipient = recipientInput.value.trim();
+  if (!recipient || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+  const now = Date.now();
+  if (now - lastTypingSent < 1500) return;
+  lastTypingSent = now;
+  state.ws.send(JSON.stringify({
+    event: 'typing',
+    data: { sender_phone: state.myPhone, reciever_phonenum: recipient }
+  }));
+});
+
+// ============================================================
+// INIT
+// ============================================================
+log('Stark Chat ready', 'highlight');
+log('HTTP: ' + API_BASE);
+log('WS: ws://localhost:8080');
+log('Login to start chatting');
+</script>
 </body>
 </html>

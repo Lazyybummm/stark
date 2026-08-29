@@ -47,3 +47,22 @@ task ={
 
 
 //dotenv looks for the env in the current folder where it is run 
+
+
+group chat schema ->
+group chat {
+    id 
+    admin phone adminphone
+    time at which this was created 
+}
+
+
+group chat functionalities:
+1.how to hadle this at a ws level 
+a.online->
+b.offline->online->user joins the ws , i need to run a query (either do ths at the http level or at the auth , when the auth succeeds , i am gonna fetch all the group id where the user is part of ) , fetched some array or so , will loop it like groupmapping for each add correspdonign user socket ,
+
+
+
+return in ws block the exctuion flow , 
+postgres query returns a array 
