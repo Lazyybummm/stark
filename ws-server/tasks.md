@@ -65,4 +65,5 @@ b.offline->online->user joins the ws , i need to run a query (either do ths at t
 
 
 return in ws block the exctuion flow , 
-postgres query returns a array 
+postgres query returns a array
+continue ->skips to the next iteration

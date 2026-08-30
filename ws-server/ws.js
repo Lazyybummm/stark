@@ -20,6 +20,48 @@ function onlineCheck(receiver_phone) {
 }
 
 
+async function removeParticipant(roomId,phone) {
+    try{
+    const response=await pgclient.query('')//remove the participant 
+    if(response.rowCount!=0){
+        return {
+            success:true,
+            message:'user removed from the group'
+        }
+    }
+}
+catch(error){
+    return {
+        success:false,
+        message:error.message
+    }
+}
+    
+}
+
+async function leaveGroup(phone,groupId){
+    try{
+        const response = await pgclient.query(
+            `DELETE FROM group_participants 
+             WHERE group_id = $1 AND phone_number = $2
+             RETURNING id, group_id, phone_number, joined_at`,
+            [groupId, phone]
+        );
+        if(response.rowCount!=0){//even in delete operation , i get the number of rows affected
+            return {
+                success:true,
+                message:"user left the group"
+            }
+        }
+    }catch(error){
+        return {
+            success:false,
+            message:error.message
+        }
+    }
+}
+
+
 async function createRoom(adminPhone,groupName){
 //fetch any existing group the user is part of based on phone number
 //add users entry for that particular group_id , 
@@ -102,7 +144,7 @@ async function sendtoRoom(sender_phone,roomId,content) {
         for (const phone of participants) {
             //insert entry for each participant
             if(phone==sender_phone) continue;
-            
+
             await pgclient.query(
                 `INSERT INTO group_message_delivery (message_id, phone_number, status) 
                  VALUES ($1, $2, $3)`,
@@ -165,6 +207,33 @@ wss.on("connection", async (socket) => {
                 const info = jwt.verify(payload.data, process.env.JWT_SECRET_KEY);
                 mappings.set(info.phone, socket);//ready to recieve messages
                 phonelookups.set(socket, info.phone);
+                //group setup 
+                //fetch the groups user is participant in 
+                const response = await pgclient.query(
+                    `SELECT 
+                        g.id,
+                        g.group_name,
+                        g.admin_phone,
+                        g.created_at,
+                        array_agg(gp.phone_number) as participants
+                     FROM groups g
+                     JOIN group_participants gp ON g.id = gp.group_id
+                     WHERE g.id IN (
+                         SELECT group_id FROM group_participants WHERE phone_number = $1
+                     )
+                     GROUP BY g.id, g.group_name, g.admin_phone, g.created_at`,
+                    [info.phone]
+                );
+                response.rows.forEach((c)=>{
+                    groups.get(c.id).add(info.phone)
+                })
+                socket.send(JSON.stringify({
+                    message:response.rows,
+                    event:"group-data"
+                }))
+
+                
+                //update the online status 
 
             } catch (e) {
                 socket.send(JSON.stringify({
@@ -370,6 +439,66 @@ wss.on("connection", async (socket) => {
                     error:response.error
                 }))
             }
+        }
+        else if(topic=='leaveroom'){
+            const phone=payload.data.sender_phone;
+            const roomId=payload.data.roomId;
+            const newAdmin=payload.data.newAdmin;
+            if(newAdmin)
+            {    const assign = await pgclient.query(
+                `UPDATE groups SET admin_phone = $1 WHERE id = $2
+                 RETURNING id, group_name, admin_phone, updated_at`,
+                [newAdmin, roomId]
+            );
+            }
+            const response=await leaveGroup(roomId,phone)
+            if(response.success){
+                socket.send(JSON.stringify({
+                    message:response.message,
+                    event:'left-group'
+                }))
+
+                const currentParticipants=groups.get(roomId);
+                if(currentParticipants.size!=0){    
+
+                currentParticipants.forEach((c)=>{
+                    const sock= mappings.get(c)
+                    sock.send(JSON.stringify({
+                        message:phone+'has left the group',
+                        roomId:roomId,
+                        event:'notify others'
+                    }))
+                 })
+                }
+            }
+            else{
+                socket.send(JSON.stringify({
+                    message:response.message,
+                    event:'issue with group leaving'
+                }))
+            }
+        }
+        else if(topic=='removeuser'){
+            const roomId=payload.data.roomId;
+            const phone=payload.data.receiver_phone;
+            const response=await removeParticipant(roomId,phone);
+            if(response.success){
+                groups.get(roomId).delete(phone);
+                const sock=mappings.get(phone);
+                sock.send(JSON.stringify({
+                    roomId:roomId,//for the ease of frontend 
+                    event:'removed from the group'
+                }))
+                sock.send(JSON.stringify({//remove the user entry from the local state in the frontend to avoid future remmoval 
+                    message:'user removed from the group',
+                    event:'user removal'
+                }))
+        }
+        else{
+            socket.send(JSON.stringify({
+                message:response.message,
+                event:'error while removal '
+            }))
         }
     });
 });
