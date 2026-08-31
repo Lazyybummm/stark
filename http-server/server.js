@@ -191,11 +191,86 @@ app.post('/getmessages', async (req, res) => {//fetching the messages based on a
         });
     }
 });
+//->not wrtten by me 
+// ============================================================
+// ✅ NEW: GET GROUP MESSAGES
+// ============================================================
+app.post('/getgroupmessages', async (req, res) => {
+    try {
+        const token = req.headers.token;
+        console.log("Token received:", token);
 
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: "No token provided"
+            });
+        }
 
+        const decode = jwt.verify(token, process.env.JWT_SECRET_KEY);
+        const { groupId } = req.body;
 
+        if (!groupId) {
+            return res.status(400).json({
+                success: false,
+                message: "Group ID is required"
+            });
+        }
 
+        console.log("Fetching group messages for group:", groupId);
 
+        // ✅ Check if user is part of the group
+        const participantCheck = await pgclient.query(
+            `SELECT * FROM group_participants 
+             WHERE group_id = $1 AND phone_number = $2`,
+            [groupId, decode.phone]
+        );
 
+        if (participantCheck.rowCount === 0) {
+            return res.status(403).json({
+                success: false,
+                message: "You are not a member of this group"
+            });
+        }
+
+        // ✅ Fetch group messages with sender names
+        const result = await pgclient.query(
+            `SELECT 
+                gm.id,
+                gm.group_id,
+                gm.sender_phone,
+                gm.content,
+                gm.created_at,
+                u.name as sender_name
+             FROM group_messages gm
+             JOIN users u ON gm.sender_phone = u.phone_number
+             WHERE gm.group_id = $1
+             ORDER BY gm.created_at ASC`,
+            [groupId]
+        );
+
+        return res.json({
+            success: true,
+            count: result.rowCount,
+            messages: result.rows
+        });
+
+    } catch (error) {
+        console.error("Error fetching group messages:", error.message);
+
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid token"
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Error fetching group messages",
+            error: error.message
+        });
+    }
+});
 
 app.listen(8000);

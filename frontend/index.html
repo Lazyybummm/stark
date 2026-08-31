@@ -3,704 +3,1433 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Stark Chat</title>
+<title>Wire — messaging prototype</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
-  body { background:#0b141a; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-  .app {
-    width:100%; max-width:420px; height:95vh; background:#1e2a32; border-radius:24px;
-    overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.6);
+  :root{
+    --ink:#181A20;
+    --paper:#EEF0F3;
+    --panel:#FFFFFF;
+    --line:#D9DCE2;
+    --cobalt:#2C5FE8;
+    --cobalt-dim:#E4EBFC;
+    --sage:#3F8360;
+    --amber:#B4750E;
+    --muted:#71767E;
+    --danger:#C43D3D;
+    --radius:10px;
   }
-  .header {
-    background:linear-gradient(135deg,#1f2c34,#182129); padding:16px 20px; display:flex;
-    justify-content:space-between; align-items:center; border-bottom:1px solid #2a3a45; flex-shrink:0;
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing:antialiased;
   }
-  .header h1 { color:#e9edef; font-size:18px; font-weight:700; letter-spacing:.3px; }
-  .header .status { display:flex; align-items:center; gap:8px; font-size:12px; color:#8696a0; }
-  .header .status .dot { width:8px; height:8px; border-radius:50%; display:inline-block; transition:.2s; }
-  .header .status .dot.online { background:#25d366; box-shadow:0 0 6px #25d36699; }
-  .header .status .dot.offline { background:#667781; }
-
-  .auth-section { padding:24px 20px; flex-shrink:0; }
-  .auth-section .brand { text-align:center; color:#25d366; font-size:15px; font-weight:600; margin-bottom:18px; }
-  .auth-section .input-group { margin-bottom:12px; }
-  .auth-section label { display:block; font-size:11px; font-weight:600; color:#8696a0; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
-  .auth-section input {
-    width:100%; padding:11px 14px; background:#2a3a45; border:1px solid #3a4a55; border-radius:10px;
-    color:#e9edef; font-size:14px; transition:.2s;
+  .display{
+    font-family:'Georgia', 'Iowan Old Style', serif;
+    letter-spacing:-0.01em;
   }
-  .auth-section input:focus { outline:none; border-color:#25d366; background:#1e2a32; }
-  .auth-section input::placeholder { color:#667781; }
-  .auth-section .btn-row { display:flex; gap:10px; margin-top:6px; }
-  .auth-section .btn-row button { flex:1; padding:11px; border:none; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; transition:.2s; }
-  .btn-primary { background:#25d366; color:#0b141a; }
-  .btn-primary:hover { background:#1ebe5a; }
-  .btn-secondary { background:#2a3a45; color:#e9edef; }
-  .btn-secondary:hover { background:#3a4a55; }
-
-  .chat-area { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-  .chat-area .chat-header {
-    padding:12px 20px; background:#1f2c34; border-bottom:1px solid #2a3a45; display:flex;
-    justify-content:space-between; align-items:center; flex-shrink:0;
+  #app{
+    height:100vh;
+    display:flex;
+    align-items:stretch;
+    justify-content:center;
   }
-  .chat-area .chat-header .chat-user { color:#e9edef; font-size:15px; font-weight:600; }
-  .chat-area .chat-header .chat-status { font-size:12px; color:#8696a0; }
-  .icon-btn { background:none; border:none; color:#25d366; font-size:13px; font-weight:700; cursor:pointer; padding:4px 8px; }
-  .icon-btn:hover { color:#1ebe5a; }
 
-  .group-panel { display:none; flex-direction:column; gap:10px; padding:14px 20px; background:#182129; border-bottom:1px solid #2a3a45; flex-shrink:0; }
-  .group-panel.active { display:flex; }
-  .group-panel .gp-title { font-size:11px; font-weight:700; color:#8696a0; text-transform:uppercase; letter-spacing:.5px; }
-  .group-panel .gp-row { display:flex; gap:8px; }
-  .group-panel input {
-    flex:1; padding:9px 12px; background:#2a3a45; border:1px solid #3a4a55; border-radius:8px;
-    color:#e9edef; font-size:13px;
+  /* ---------- AUTH SCREEN ---------- */
+  .auth-wrap{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
   }
-  .group-panel input:focus { outline:none; border-color:#25d366; }
-  .group-panel button { padding:9px 14px; background:#25d366; border:none; border-radius:8px; color:#0b141a; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap; }
-  .group-panel button:hover { background:#1ebe5a; }
-  .group-panel .gp-hint { font-size:11px; color:#667781; }
-
-  .conv-list { flex:1; overflow-y:auto; padding:8px 0; background:#131f28; }
-  .conv-item { padding:12px 20px; display:flex; align-items:center; gap:14px; cursor:pointer; transition:.15s; border-bottom:1px solid #1a2630; }
-  .conv-item:hover { background:#1a2a35; }
-  .conv-item.active { background:#1a2a35; border-left:3px solid #25d366; }
-  .conv-item .avatar {
-    width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,#25d366,#128c4a);
-    color:#0b141a; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; flex-shrink:0;
+  .auth-card{
+    width:380px;
+    max-width:92vw;
+    padding:40px 34px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
   }
-  .conv-item .conv-info { flex:1; min-width:0; }
-  .conv-item .conv-info .conv-name { color:#e9edef; font-size:15px; font-weight:600; }
-  .conv-item .conv-info .conv-last { color:#8696a0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .conv-item .conv-meta { text-align:right; flex-shrink:0; }
-  .conv-item .conv-meta .conv-time { font-size:11px; color:#667781; }
-  .conv-list .empty { color:#667781; font-size:14px; text-align:center; padding:40px 20px; }
-
-  .messages {
-    flex:1; overflow-y:auto; padding:16px 20px; display:none; flex-direction:column; gap:6px;
-    background-color:#0d1418;
-    background-image:radial-gradient(#182229 1px, transparent 1px);
-    background-size:18px 18px;
+  .auth-word{
+    font-size:34px;
+    font-weight:400;
+    margin:0 0 4px 0;
   }
-  .messages.active { display:flex; }
-  .messages .empty { color:#667781; font-size:14px; text-align:center; margin:auto; }
-  .messages .msg { max-width:78%; padding:8px 14px; border-radius:12px; font-size:14px; line-height:1.5; word-wrap:break-word; animation:fadeIn .18s ease; position:relative; }
-  @keyframes fadeIn { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
-  .messages .msg.sent { background:#005c4b; color:#e9edef; align-self:flex-end; border-bottom-right-radius:4px; }
-  .messages .msg.received { background:#1e2a32; color:#e9edef; align-self:flex-start; border-bottom-left-radius:4px; }
-  .messages .msg .meta { display:flex; justify-content:flex-end; gap:6px; font-size:10px; color:#8fb9ae; margin-top:2px; align-items:center; }
-  .messages .msg.received .meta { color:#667781; }
-  .messages .msg .sender { font-size:12px; font-weight:600; color:#58d3a8; margin-bottom:2px; }
-
-  .status-icon { font-size:12px; }
-  .status-icon.sent { color:#8fb9ae; }
-  .status-icon.delivered { color:#8fb9ae; }
-  .status-icon.seen { color:#53bdeb; }
-  .status-icon.sending { color:#8fb9ae; font-style:italic; }
-
-  .typing-indicator { padding:4px 20px; font-size:12px; color:#25d366; font-style:italic; min-height:20px; flex-shrink:0; background:#131f28; }
-
-  .back-btn { background:none; border:none; color:#25d366; font-size:18px; cursor:pointer; padding:4px 8px; }
-  .back-btn:hover { color:#1ebe5a; }
-
-  .input-area { padding:12px 16px; background:#1f2c34; border-top:1px solid #2a3a45; display:none; gap:10px; flex-shrink:0; align-items:center; }
-  .input-area.active { display:flex; }
-  .input-area .to-input { flex:1; padding:8px 12px; background:#2a3a45; border:1px solid #3a4a55; border-radius:8px; color:#e9edef; font-size:12px; width:100px; flex-shrink:0; }
-  .input-area .msg-input { flex:2; padding:9px 14px; background:#2a3a45; border:1px solid #3a4a55; border-radius:20px; color:#e9edef; font-size:13px; }
-  .input-area .to-input:focus, .input-area .msg-input:focus { outline:none; border-color:#25d366; }
-  .input-area .msg-input::placeholder { color:#667781; }
-  .input-area button {
-    padding:9px 16px; background:#25d366; border:none; border-radius:50%; width:38px; height:38px;
-    color:#0b141a; font-weight:700; font-size:15px; cursor:pointer; transition:.2s; flex-shrink:0;
+  .auth-sub{
+    color:var(--muted);
+    font-size:14px;
+    margin:0 0 28px 0;
+    line-height:1.5;
   }
-  .input-area button:hover { background:#1ebe5a; }
-
-  .log-area {
-    background:#0d1820; padding:8px 14px; max-height:70px; overflow-y:auto;
-    font-family:'Courier New',monospace; font-size:10px; color:#667781; border-top:1px solid #1a2630; flex-shrink:0;
+  .field{
+    margin-bottom:14px;
   }
-  .log-area .log-entry { padding:2px 0; border-bottom:1px solid #0f1a22; }
-  .log-area .log-entry .highlight { color:#25d366; }
-  .log-area .log-entry .error { color:#e74c3c; }
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .field input{
+    width:100%;
+    padding:11px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    background:#FAFBFC;
+    color:var(--ink);
+  }
+  .field input:focus{
+    outline:none;
+    border-color:var(--cobalt);
+    background:#fff;
+  }
+  .btn{
+    width:100%;
+    padding:12px;
+    border-radius:8px;
+    border:none;
+    background:var(--ink);
+    color:#fff;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .btn:hover{ background:#000; }
+  .btn.secondary{
+    background:transparent;
+    color:var(--cobalt);
+    border:1px solid var(--line);
+  }
+  .btn.secondary:hover{ background:var(--cobalt-dim); }
+  .switch-line{
+    text-align:center;
+    margin-top:18px;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .switch-line a{
+    color:var(--cobalt);
+    cursor:pointer;
+    text-decoration:none;
+  }
+  .auth-error{
+    background:#FBEAEA;
+    color:var(--danger);
+    border-radius:8px;
+    padding:9px 11px;
+    font-size:12.5px;
+    margin-bottom:14px;
+  }
 
-  .hidden { display:none !important; }
-  .flex-row { display:flex; gap:8px; align-items:center; }
-  .badge { background:#2a3a45; padding:2px 10px; border-radius:20px; font-size:10px; color:#8696a0; }
-  ::-webkit-scrollbar { width:4px; }
-  ::-webkit-scrollbar-track { background:#0d1820; }
-  ::-webkit-scrollbar-thumb { background:#2a3a45; border-radius:10px; }
+  /* ---------- MAIN SHELL ---------- */
+  .shell{
+    width:100%;
+    height:100%;
+    display:flex;
+  }
+  .sidebar{
+    width:320px;
+    min-width:320px;
+    background:var(--panel);
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+  }
+  .side-head{
+    padding:18px 18px 12px 18px;
+    border-bottom:1px solid var(--line);
+  }
+  .side-head-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .brand{
+    font-size:20px;
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .brand .dot{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--sage);
+    display:inline-block;
+  }
+  .me{
+    font-size:12px;
+    color:var(--muted);
+  }
+  .logout{
+    font-size:12px;
+    color:var(--muted);
+    background:none;
+    border:none;
+    cursor:pointer;
+    text-decoration:underline;
+    padding:0;
+  }
+  .tabs{
+    display:flex;
+    gap:4px;
+    background:#F1F2F5;
+    padding:3px;
+    border-radius:8px;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:7px 0;
+    font-size:12.5px;
+    border-radius:6px;
+    cursor:pointer;
+    color:var(--muted);
+    font-weight:600;
+  }
+  .tab.active{
+    background:#fff;
+    color:var(--ink);
+    box-shadow:0 1px 2px rgba(0,0,0,0.08);
+  }
+  .new-row{
+    padding:10px 18px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    gap:8px;
+  }
+  .new-row input{
+    flex:1;
+    padding:8px 10px;
+    border-radius:7px;
+    border:1px solid var(--line);
+    font-size:13px;
+    background:#FAFBFC;
+  }
+  .new-row button{
+    padding:8px 12px;
+    border-radius:7px;
+    border:none;
+    background:var(--cobalt);
+    color:#fff;
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .list{
+    flex:1;
+    overflow-y:auto;
+  }
+  .row-item{
+    padding:12px 18px;
+    display:flex;
+    gap:11px;
+    align-items:center;
+    cursor:pointer;
+    border-bottom:1px solid #F0F1F4;
+  }
+  .row-item:hover{ background:#F7F8FA; }
+  .row-item.active{ background:var(--cobalt-dim); }
+  .avatar{
+    width:40px;height:40px;border-radius:50%;
+    background:var(--ink);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;
+    font-weight:600;
+    flex-shrink:0;
+  }
+  .avatar.group{ background:var(--amber); }
+  .row-text{ flex:1; min-width:0; }
+  .row-name{
+    font-size:14px;
+    font-weight:600;
+    display:flex;
+    justify-content:space-between;
+    gap:6px;
+  }
+  .row-time{ font-weight:400; color:var(--muted); font-size:11px; }
+  .row-preview{
+    font-size:12.5px;
+    color:var(--muted);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    margin-top:2px;
+  }
+  .empty-list{
+    padding:30px 18px;
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.6;
+  }
+
+  /* ---------- CHAT PANE ---------- */
+  .chat-pane{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  .chat-head{
+    padding:14px 22px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--panel);
+  }
+  .chat-head-left{ display:flex; align-items:center; gap:11px; }
+  .chat-head-name{ font-size:15px; font-weight:600; }
+  .chat-head-sub{ font-size:12px; color:var(--muted); margin-top:1px; }
+  .head-actions{ display:flex; gap:8px; }
+  .icon-btn{
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:7px;
+    padding:6px 11px;
+    font-size:12px;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .icon-btn:hover{ background:#F7F8FA; }
+  .icon-btn.danger{ color:var(--danger); border-color:#F1D3D3; }
+
+  .messages{
+    flex:1;
+    overflow-y:auto;
+    padding:20px 26px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    background:
+      radial-gradient(circle at 1px 1px, #E3E5EA 1px, transparent 0) 0 0/22px 22px,
+      var(--paper);
+  }
+  .bubble-row{ display:flex; }
+  .bubble-row.mine{ justify-content:flex-end; }
+  .bubble{
+    max-width:62%;
+    padding:9px 13px;
+    border-radius:14px;
+    font-size:14px;
+    line-height:1.45;
+    position:relative;
+  }
+  .bubble .sender-tag{
+    font-size:11px;
+    font-weight:700;
+    margin-bottom:2px;
+    color:var(--amber);
+  }
+  .bubble.theirs{
+    background:#fff;
+    border:1px solid var(--line);
+    border-bottom-left-radius:4px;
+  }
+  .bubble.mine{
+    background:var(--cobalt);
+    color:#fff;
+    border-bottom-right-radius:4px;
+  }
+  .meta{
+    font-size:10.5px;
+    margin-top:4px;
+    display:flex;
+    gap:4px;
+    align-items:center;
+    opacity:0.75;
+  }
+  .bubble.mine .meta{ justify-content:flex-end; }
+  .system-line{
+    text-align:center;
+    font-size:11.5px;
+    color:var(--muted);
+    margin:6px 0;
+  }
+  .typing-row{
+    font-size:12.5px;
+    color:var(--muted);
+    padding:0 26px 8px 26px;
+    font-style:italic;
+  }
+  .composer{
+    display:flex;
+    gap:10px;
+    padding:14px 22px;
+    border-top:1px solid var(--line);
+    background:var(--panel);
+  }
+  .composer input{
+    flex:1;
+    padding:11px 14px;
+    border-radius:20px;
+    border:1px solid var(--line);
+    font-size:14px;
+    background:#F7F8FA;
+  }
+  .composer input:focus{ outline:none; border-color:var(--cobalt); background:#fff; }
+  .send-btn{
+    border:none;
+    background:var(--ink);
+    color:#fff;
+    width:42px;height:42px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:16px;
+  }
+  .send-btn:disabled{ background:#C7CAD1; cursor:default; }
+
+  .placeholder-pane{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    color:var(--muted);
+    gap:10px;
+    text-align:center;
+    padding:0 30px;
+  }
+  .placeholder-pane .display{ font-size:22px; color:var(--ink); }
+
+  /* ---------- MODAL ---------- */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(20,22,26,0.4);
+    display:flex; align-items:center; justify-content:center;
+    z-index:30;
+  }
+  .modal{
+    width:360px;
+    max-width:90vw;
+    background:#fff;
+    border-radius:12px;
+    padding:24px;
+  }
+  .modal h3{ margin:0 0 4px 0; font-size:17px; }
+  .modal .modal-sub{ font-size:12.5px; color:var(--muted); margin-bottom:16px; }
+  .modal-row{ margin-bottom:12px; }
+  .modal-actions{ display:flex; gap:10px; margin-top:18px; }
+  .member-list{ max-height:180px; overflow-y:auto; margin:10px 0; }
+  .member-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:7px 0; font-size:13px; border-bottom:1px solid #F1F2F5;
+  }
+  .member-row .tag{
+    font-size:10.5px; color:var(--amber); font-weight:700; margin-left:6px;
+  }
+  .member-row button{
+    border:none; background:none; color:var(--danger);
+    cursor:pointer; font-size:12px;
+  }
+  .toast-stack{
+    position:fixed;
+    bottom:20px; right:20px;
+    display:flex; flex-direction:column; gap:8px;
+    z-index:50;
+  }
+  .toast{
+    background:var(--ink);
+    color:#fff;
+    padding:10px 15px;
+    border-radius:8px;
+    font-size:12.5px;
+    max-width:280px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.18);
+  }
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-thumb{ background:#D3D6DC; border-radius:8px; }
 </style>
 </head>
 <body>
-<div class="app" id="app">
-  <div class="header">
-    <h1>Stark Chat</h1>
-    <div class="status">
-      <span class="dot offline" id="statusDot"></span>
-      <span id="statusText">Offline</span>
-      <span class="badge" id="connBadge">WS: --</span>
-    </div>
-  </div>
+<div id="app"></div>
 
-  <div class="auth-section" id="authSection">
-    <div class="brand">Sign in to continue</div>
-    <div class="input-group"><label>Phone</label><input id="phoneInput" placeholder="+919876543210" value="+919876543210" /></div>
-    <div class="input-group"><label>Password</label><input id="passwordInput" type="password" placeholder="••••••••" value="password123" /></div>
-    <div class="input-group"><label>Name</label><input id="nameInput" placeholder="Your name" value="Test User" /></div>
-    <div class="btn-row">
-      <button class="btn-secondary" id="signupBtn">Sign Up</button>
-      <button class="btn-primary" id="loginBtn">Login</button>
-    </div>
-  </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script type="text/babel">
+/* =========================================================================
+   WIRE — React frontend that talks to your real backend via HTTP + WebSocket
+   ========================================================================= */
 
-  <div class="chat-area hidden" id="chatArea">
-    <div class="chat-header">
-      <div class="flex-row">
-        <button class="back-btn hidden" id="backBtn">&#8592;</button>
-        <span class="chat-user" id="chatUser">Chats</span>
-      </div>
-      <div class="flex-row">
-        <button class="icon-btn hidden" id="groupToggleBtn">+ Group</button>
-        <span class="chat-status" id="chatStatus">Connected</span>
-      </div>
-    </div>
-
-    <div class="group-panel" id="groupPanel">
-      <div id="createGroupSection">
-        <div class="gp-title">Create a group</div>
-        <div class="gp-row" style="margin-top:6px">
-          <input id="newGroupName" placeholder="Group name" />
-          <button id="createGroupBtn">Create</button>
-        </div>
-      </div>
-      <div id="addMemberSection" class="hidden">
-        <div class="gp-title">Add member to "<span id="activeRoomName"></span>" (room #<span id="activeRoomId"></span>)</div>
-        <div class="gp-row" style="margin-top:6px">
-          <input id="memberPhoneInput" placeholder="+91..." />
-          <button id="addMemberBtn">Add</button>
-        </div>
-        <div class="gp-hint">Only the group admin can add members.</div>
-      </div>
-    </div>
-
-    <div class="conv-list" id="convList">
-      <div class="empty">No conversations yet.<br />Start a chat!</div>
-    </div>
-
-    <div class="messages" id="messages">
-      <div class="empty">Select a conversation</div>
-    </div>
-
-    <div class="typing-indicator" id="typingIndicator"></div>
-
-    <div class="input-area" id="inputArea">
-      <input class="to-input" id="recipientInput" placeholder="To" value="+919999999999" />
-      <input class="msg-input" id="messageInput" placeholder="Type a message..." />
-      <button id="sendBtn">&#10148;</button>
-    </div>
-  </div>
-
-  <div class="log-area" id="logArea"><div class="log-entry">[system] Ready</div></div>
-</div>
-
-<script>
-// ============================================================
-// STATE
-// ============================================================
-const state = {
-  ws: null, token: null, myPhone: null,
-  conversations: [], activeConvId: null, selectedConv: null,
-  messages: [], pendingMessages: new Map(),
-  typingTimeout: null, lastRoomId: null, pendingGroupName: null,
-};
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
 // ============================================================
-// DOM REFS
-// ============================================================
-const $ = (id) => document.getElementById(id);
-const logArea = $('logArea'), messages = $('messages'), convList = $('convList');
-const statusDot = $('statusDot'), statusText = $('statusText'), connBadge = $('connBadge');
-const authSection = $('authSection'), chatArea = $('chatArea'), chatUser = $('chatUser');
-const chatStatus = $('chatStatus'), backBtn = $('backBtn'), typingIndicator = $('typingIndicator');
-const phoneInput = $('phoneInput'), passwordInput = $('passwordInput'), nameInput = $('nameInput');
-const recipientInput = $('recipientInput'), messageInput = $('messageInput');
-const signupBtn = $('signupBtn'), loginBtn = $('loginBtn'), sendBtn = $('sendBtn');
-const groupToggleBtn = $('groupToggleBtn'), groupPanel = $('groupPanel');
-const newGroupName = $('newGroupName'), createGroupBtn = $('createGroupBtn');
-const createGroupSection = $('createGroupSection'), addMemberSection = $('addMemberSection');
-const activeRoomName = $('activeRoomName'), activeRoomId = $('activeRoomId');
-const memberPhoneInput = $('memberPhoneInput'), addMemberBtn = $('addMemberBtn');
-
-// ============================================================
-// LOGGING
-// ============================================================
-function log(message, type = 'info') {
-  const entry = document.createElement('div');
-  entry.className = 'log-entry';
-  const cls = type === 'error' ? 'error' : (type === 'highlight' ? 'highlight' : '');
-  entry.innerHTML = `<span class="${cls}">[${new Date().toLocaleTimeString()}] ${message}</span>`;
-  logArea.appendChild(entry);
-  logArea.scrollTop = logArea.scrollHeight;
-  if (logArea.children.length > 50) logArea.removeChild(logArea.firstChild);
-}
-
-// ============================================================
-// UI HELPERS
-// ============================================================
-function setStatus(connected) {
-  statusDot.className = `dot ${connected ? 'online' : 'offline'}`;
-  statusText.textContent = connected ? 'Online' : 'Offline';
-  connBadge.textContent = connected ? 'WS: ON' : 'WS: OFF';
-}
-function showAuth(show) {
-  authSection.classList.toggle('hidden', !show);
-  chatArea.classList.toggle('hidden', show);
-  if (!show) loadConversations();
-}
-function getStatusIcon(status) {
-  if (status === 'seen') return { icon: '✓✓', class: 'seen' };
-  if (status === 'delivered') return { icon: '✓✓', class: 'delivered' };
-  if (status === 'sent') return { icon: '✓', class: 'sent' };
-  return { icon: '◌', class: 'sending' };
-}
-
-// ============================================================
-// CONVERSATIONS
+// API & WS CONFIGURATION
 // ============================================================
 const API_BASE = 'http://localhost:8000';
-
-async function httpPost(endpoint, body, withToken = false) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (withToken) headers['token'] = state.token;
-  const res = await fetch(`${API_BASE}${endpoint}`, { method: 'POST', headers, body: JSON.stringify(body || {}) });
-  const text = await res.text();
-  try { return JSON.parse(text); } catch { return { raw: text }; }
-}
-
-async function loadConversations() {
-  try {
-    const data = await httpPost('/myconversation', {}, true);
-    let convs = null;
-    if (Array.isArray(data)) {
-      convs = data;
-    } else if (data.raw) {
-      const trimmed = data.raw.trim();
-      // /myconversation sends plain text ("you dont have any active
-      // conversations present!") when there's nothing to show — only
-      // try to parse it as JSON if it actually looks like JSON.
-      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-        try { convs = JSON.parse(trimmed); } catch { convs = null; }
-      }
-    }
-    if (!convs) { convList.innerHTML = '<div class="empty">No conversations yet.<br />Start a chat!</div>'; return; }
-    state.conversations = convs;
-    renderConversations(convs);
-  } catch (e) {
-    log('Failed to load conversations: ' + e.message, 'error');
-  }
-}
-
-function renderConversations(convs) {
-  if (!convs || convs.length === 0) {
-    convList.innerHTML = '<div class="empty">No conversations yet.<br />Start a chat!</div>';
-    return;
-  }
-  let html = '';
-  for (const conv of convs) {
-    const otherPhone = conv.other_user_phone || (conv.user1_phone === state.myPhone ? conv.user2_phone : conv.user1_phone);
-    const otherName = conv.other_user_name || otherPhone;
-    const initial = (otherName || '?').charAt(0).toUpperCase();
-    const time = conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-    html += `
-      <div class="conv-item" data-id="${conv.id}" data-phone="${otherPhone}" data-name="${otherName}">
-        <div class="avatar">${initial}</div>
-        <div class="conv-info">
-          <div class="conv-name">${otherName}</div>
-          <div class="conv-last">${conv.last_message || 'No messages yet'}</div>
-        </div>
-        <div class="conv-meta"><div class="conv-time">${time}</div></div>
-      </div>`;
-  }
-  convList.innerHTML = html;
-  document.querySelectorAll('.conv-item').forEach(el => {
-    el.addEventListener('click', () => openConversation(el.dataset.id, el.dataset.phone, el.dataset.name));
-  });
-}
+const WS_URL = 'ws://localhost:8080';
 
 // ============================================================
-// OPEN CONVERSATION / LOAD MESSAGES
+// HELPERS
 // ============================================================
-async function openConversation(convId, phone, name) {
-  state.activeConvId = convId;
-  state.selectedConv = phone;
-  chatUser.textContent = name || phone;
-  backBtn.classList.remove('hidden');
-  groupToggleBtn.classList.add('hidden');
-  groupPanel.classList.remove('active');
-  messages.classList.add('active');
-  messages.innerHTML = '<div class="empty">Loading messages...</div>';
-  recipientInput.value = phone;
-  $('inputArea').classList.add('active');
-  document.querySelectorAll('.conv-item').forEach(el => el.classList.toggle('active', el.dataset.id === convId));
-
-  await loadMessages(convId);
-
-  if (state.pendingMessages.has(String(convId))) {
-    for (const msg of state.pendingMessages.get(String(convId))) {
-      addMessageUI(msg, msg.sender_phone === state.myPhone);
-      if (msg.sender_phone !== state.myPhone && msg.id) markSeen(msg.id, msg.sender_phone);
-    }
-    state.pendingMessages.delete(String(convId));
-  }
+function fmtTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
-
-async function loadMessages(convId) {
-  try {
-    const res = await fetch(`${API_BASE}/getmessages`, {
-      method: 'POST',
-      headers: { 'token': state.token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversationId: convId })
-    });
-    const data = await res.json();
-    messages.innerHTML = '';
-    if (data.success && data.messages && data.messages.length > 0) {
-      for (const msg of data.messages) {
-        const isSent = msg.sender_phone === state.myPhone;
-        addMessageUI(msg, isSent);
-        // Mark anything the other person sent us as seen, now that we're viewing it
-        if (!isSent && msg.status !== 'seen') markSeen(msg.id, msg.sender_phone);
-      }
-    } else {
-      messages.innerHTML = '<div class="empty">No messages yet.<br />Start the conversation!</div>';
-    }
-  } catch (e) {
-    log('Failed to load messages: ' + e.message, 'error');
-    messages.innerHTML = '<div class="empty">Error loading messages</div>';
-  }
+function initials(name) {
+  if (!name) return '?';
+  return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
-
-// ============================================================
-// MESSAGE RENDERING
-// ============================================================
-function addMessageUI(msg, isSent) {
-  const empty = messages.querySelector('.empty');
-  if (empty) empty.remove();
-
-  const div = document.createElement('div');
-  div.className = `msg ${isSent ? 'sent' : 'received'}`;
-  if (msg.id) div.dataset.messageId = msg.id;
-  // NOTE: dataset.tempId writes attribute "data-temp-id" — read it back the same way.
-  if (msg.tempId) div.dataset.tempId = msg.tempId;
-
-  const senderName = msg.sender_name || (isSent ? 'You' : (msg.sender_phone || 'Unknown'));
-  const time = new Date(msg.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const status = msg.status || (isSent ? 'sending' : 'received');
-  const statusIcon = getStatusIcon(status);
-  const statusHtml = isSent ? `<span class="status-icon ${statusIcon.class}">${statusIcon.icon}</span>` : '';
-
-  div.innerHTML = `
-    <div class="sender">${senderName}</div>
-    ${escapeHtml(msg.content || msg.message || msg.text || '')}
-    <div class="meta"><span>${time}</span>${statusHtml}</div>`;
-  messages.appendChild(div);
-  messages.scrollTop = messages.scrollHeight;
-
-  if (msg.id && !state.messages.find(m => m.id === msg.id)) {
-    state.messages.push({
-      id: msg.id, tempId: msg.tempId || null,
-      content: msg.content || msg.message || msg.text,
-      sender_phone: msg.sender_phone || msg.from,
-      receiver_phone: msg.receiver_phone,
-      status: msg.status || (isSent ? 'sent' : 'received'),
-      created_at: msg.created_at || new Date().toISOString()
-    });
-  }
-}
-
 function escapeHtml(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
 }
+function getToken() {
+  return localStorage.getItem('token');
+}
+function getMyPhone() {
+  return localStorage.getItem('myPhone');
+}
+function getMyName() {
+  return localStorage.getItem('myName');
+}
 
-// Query the attribute exactly as `dataset.tempId` actually writes it — "data-temp-id".
-function updateMessageStatus(tempId, realId, status) {
-  const msgEl = messages.querySelector(`[data-temp-id="${tempId}"]`);
-  if (msgEl) {
-    setBubbleStatus(msgEl, status);
-    if (realId) {
-      msgEl.dataset.messageId = realId;
-      delete msgEl.dataset.tempId;
+// ============================================================
+// API FUNCTIONS
+// ============================================================
+async function apiCall(endpoint, method = 'POST', body = null, withToken = true) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (withToken) {
+    const token = getToken();
+    if (token) headers['token'] = token;
+  }
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  
+  const res = await fetch(`${API_BASE}${endpoint}`, opts);
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return { raw: text }; }
+}
+
+async function login(phone, password) {
+  return apiCall('/login', 'POST', { phone, password }, false);
+}
+
+async function signup(phone, password, name) {
+  return apiCall('/signup', 'POST', { phone, password, name }, false);
+}
+
+async function getConversations() {
+  return apiCall('/myconversation', 'POST', {}, true);
+}
+
+async function getMessages(conversationId) {
+  return apiCall('/getmessages', 'POST', { conversationId }, true);
+}
+
+async function getGroupMessages(groupId) {
+  return apiCall('/getgroupmessages', 'POST', { groupId }, true);
+}
+
+// ============================================================
+// APP COMPONENT
+// ============================================================
+function App() {
+  // --- Auth state ---
+  const [me, setMe] = useState(null);
+  const [screen, setScreen] = useState('login');
+  const [authError, setAuthError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // --- Data state ---
+  const [conversations, setConversations] = useState([]);
+  const [messagesCache, setMessagesCache] = useState({});
+  const [groupMessagesCache, setGroupMessagesCache] = useState({});
+  const [groups, setGroups] = useState([]);
+
+  // --- UI state ---
+  const [activeTab, setActiveTab] = useState('chats');
+  const [activeChat, setActiveChat] = useState(null); // { type: 'convo'|'group', id }
+  const [typingFrom, setTypingFrom] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const [showNewGroup, setShowNewGroup] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
+  const [newChatPhone, setNewChatPhone] = useState('');
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupMembers, setNewGroupMembers] = useState('');
+  const [draft, setDraft] = useState('');
+  const typingTimeout = useRef(null);
+  const messagesEndRef = useRef(null);
+  const wsRef = useRef(null);
+
+  // --- Toast system ---
+  function pushToast(text) {
+    const id = Date.now() + Math.random();
+    setToasts(t => [...t, { id, text }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3200);
+  }
+
+  // --- WebSocket connection ---
+  const connectWebSocket = useCallback(() => {
+    const token = getToken();
+    if (!token) return;
+
+    const ws = new WebSocket(WS_URL);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      pushToast('WebSocket connected');
+      ws.send(JSON.stringify({ event: 'auth', data: token }));
+    };
+
+    ws.onmessage = (event) => {
+      // ✅ Handle both JSON and plain text messages
+      let msg = null;
+      let isJson = false;
+      
+      try {
+        msg = JSON.parse(event.data);
+        isJson = true;
+        console.log('WS message (JSON):', msg);
+      } catch (e) {
+        // ✅ Not JSON - treat as plain text
+        console.log('WS message (plain text):', event.data);
+      }
+
+      // ✅ Handle plain text messages (like "connected")
+      if (!isJson) {
+        if (event.data === 'connected') {
+          pushToast('Connected to WebSocket server');
+        }
+        return;
+      }
+
+      // --- Handle JSON messages ---
+
+      // Auth success
+      if (msg.event === 'auth_success') {
+        pushToast('Authenticated with WebSocket');
+        loadConversations();
+      }
+
+      // Auth failed
+      if (msg.event === 'auth' && msg.message) {
+        pushToast('Auth failed: ' + msg.message);
+        localStorage.removeItem('token');
+        setMe(null);
+      }
+
+      // Group data from auth
+      if (msg.event === 'group-data') {
+        const groupData = msg.message || msg.data || [];
+        if (Array.isArray(groupData) && groupData.length > 0) {
+          setGroups(groupData);
+        }
+      }
+
+      // Incoming 1-on-1 message
+      if (msg.event === 'chat' || msg.event === 'newMessage') {
+        const data = msg.data || msg.content || msg;
+        const convId = data.conversation_id;
+        if (convId) {
+          setMessagesCache(prev => {
+            const existing = prev[convId] || [];
+            if (existing.find(m => m.id === data.id)) return prev;
+            return { ...prev, [convId]: [...existing, data] };
+          });
+          setConversations(prev => prev.map(c => 
+            c.id === convId ? { ...c, last_message: data.content, last_message_at: data.created_at } : c
+          ));
+        }
+      }
+
+      // Incoming group message
+      if (msg.event === 'group_message' || msg.event === 'group message recieved') {
+        const data = msg.data || msg.message || msg;
+        const groupId = data.group_id || data.groupId;
+        if (groupId) {
+          setGroupMessagesCache(prev => {
+            const existing = prev[groupId] || [];
+            if (existing.find(m => m.id === data.id)) return prev;
+            return { ...prev, [groupId]: [...existing, data] };
+          });
+        }
+      }
+
+      // Message status updates
+      if (msg.status === 'sent' || msg.status === 'delivered') {
+        if (msg.tempid) {
+          for (const convId in messagesCache) {
+            const idx = messagesCache[convId].findIndex(m => m.tempId === msg.tempid);
+            if (idx !== -1) {
+              setMessagesCache(prev => {
+                const updated = [...prev[convId]];
+                updated[idx] = { ...updated[idx], id: msg.correctid, status: msg.status };
+                return { ...prev, [convId]: updated };
+              });
+              break;
+            }
+          }
+        }
+      }
+
+      // Seen status
+      if (msg.event === 'messageSeen' && msg.messageId) {
+        // Update UI for seen message
+      }
+
+      // Typing indicator
+      if (msg.event === 'typing') {
+        setTypingFrom(msg.sender_phone);
+        clearTimeout(typingTimeout.current);
+        typingTimeout.current = setTimeout(() => setTypingFrom(null), 2500);
+      }
+
+      // Group events
+      if (msg.message === 'room created succesfully') {
+        pushToast('Group created successfully!');
+        loadConversations();
+      }
+      if (msg.event === 'added to a room') {
+        pushToast(`You were added to "${msg.groupName}"`);
+        loadConversations();
+      }
+      if (msg.event === 'user added' || msg.message === 'user added to the room') {
+        pushToast('Member added to group');
+        loadConversations();
+      }
+      if (msg.event === 'left-group' || msg.event === 'user left the group') {
+        pushToast('You left the group');
+        loadConversations();
+        setActiveChat(null);
+      }
+      if (msg.event === 'removed from the group') {
+        pushToast('You were removed from the group');
+        loadConversations();
+        setActiveChat(null);
+      }
+      if (msg.event === 'notify others' && msg.message) {
+        // System notification
+      }
+      if (msg.event === 'error') {
+        pushToast('Error: ' + (msg.err_msg || msg.message));
+      }
+    };
+
+    ws.onclose = () => {
+      pushToast('WebSocket disconnected');
+      setTimeout(connectWebSocket, 3000);
+    };
+
+    ws.onerror = (error) => {
+      console.error('WS error:', error);
+    };
+
+    return ws;
+  }, [messagesCache]);
+
+  // --- Load conversations ---
+  const loadConversations = useCallback(async () => {
+    try {
+      const data = await getConversations();
+      console.log('Conversations:', data);
+      if (data.success && data.conversations) {
+        setConversations(data.conversations);
+      } else if (Array.isArray(data)) {
+        setConversations(data);
+      } else if (data.raw && data.raw.includes('you dont have any active')) {
+        setConversations([]);
+      }
+    } catch (error) {
+      console.error('Load conversations error:', error);
     }
-    log('Status updated to: ' + status, 'highlight');
-  } else {
-    log('Could not find bubble for tempId ' + tempId, 'error');
-  }
+  }, []);
 
-  const msgState = state.messages.find(m => m.tempId === tempId);
-  if (msgState) {
-    msgState.id = realId || msgState.id;
-    msgState.status = status;
-    msgState.tempId = null;
-  }
-}
-
-// Used both for tempId-based updates (sent/delivered) and messageId-based updates (seen)
-function setBubbleStatus(msgEl, status) {
-  const statusSpan = msgEl.querySelector('.status-icon');
-  if (!statusSpan) return;
-  const statusIcon = getStatusIcon(status);
-  statusSpan.textContent = statusIcon.icon;
-  statusSpan.className = `status-icon ${statusIcon.class}`;
-}
-
-function updateSeenStatus(messageId) {
-  const msgEl = messages.querySelector(`[data-message-id="${messageId}"]`);
-  if (msgEl) setBubbleStatus(msgEl, 'seen');
-  const msgState = state.messages.find(m => String(m.id) === String(messageId));
-  if (msgState) msgState.status = 'seen';
-}
-
-function markSeen(messageId, otherPhone) {
-  if (!messageId || !otherPhone) return;
-  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
-  state.ws.send(JSON.stringify({ event: 'seen', data: { messageId, rec_phone: otherPhone } }));
-}
-
-// ============================================================
-// BACK BUTTON
-// ============================================================
-backBtn.addEventListener('click', () => {
-  state.activeConvId = null;
-  state.selectedConv = null;
-  chatUser.textContent = 'Chats';
-  backBtn.classList.add('hidden');
-  groupToggleBtn.classList.remove('hidden');
-  messages.classList.remove('active');
-  messages.innerHTML = '<div class="empty">Select a conversation</div>';
-  $('inputArea').classList.remove('active');
-  document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
-  loadConversations();
-});
-
-// ============================================================
-// GROUPS / ROOMS
-// ============================================================
-groupToggleBtn.addEventListener('click', () => {
-  groupPanel.classList.toggle('active');
-  // Reset to the "create" step each time the panel is reopened fresh
-  if (groupPanel.classList.contains('active') && !state.lastRoomId) {
-    createGroupSection.classList.remove('hidden');
-    addMemberSection.classList.add('hidden');
-  }
-});
-
-createGroupBtn.addEventListener('click', () => {
-  const groupName = newGroupName.value.trim();
-  if (!groupName) { log('Enter a group name', 'error'); return; }
-  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { log('Not connected to WebSocket', 'error'); return; }
-  state.pendingGroupName = groupName;
-  state.ws.send(JSON.stringify({
-    event: 'create-room',
-    data: { sender_phone: state.myPhone, group_name: groupName, tempid: 'room_' + Date.now() }
-  }));
-  log('Creating group "' + groupName + '"...');
-});
-
-addMemberBtn.addEventListener('click', () => {
-  const memberPhone = memberPhoneInput.value.trim();
-  if (!state.lastRoomId) { log('Create a group first', 'error'); return; }
-  if (!memberPhone) { log('Enter a phone number', 'error'); return; }
-  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { log('Not connected to WebSocket', 'error'); return; }
-  state.ws.send(JSON.stringify({
-    event: 'addtoroom',
-    data: { roomId: state.lastRoomId, receiver_phone: memberPhone, sender_phone: state.myPhone }
-  }));
-  log('Adding ' + memberPhone + ' to room ' + state.lastRoomId + '...');
-  memberPhoneInput.value = '';
-});
-
-// ============================================================
-// AUTH
-// ============================================================
-signupBtn.addEventListener('click', async () => {
-  const phone = phoneInput.value.trim(), password = passwordInput.value.trim(), name = nameInput.value.trim();
-  if (!phone || !password || !name) { log('Please fill all fields', 'error'); return; }
-  log(`Signing up ${phone}...`);
-  try {
-    const res = await httpPost('/signup', { phone, password, name });
-    log(res.message || 'Signup successful', 'highlight');
-  } catch (e) { log('Signup error: ' + e.message, 'error'); }
-});
-
-loginBtn.addEventListener('click', async () => {
-  const phone = phoneInput.value.trim(), password = passwordInput.value.trim();
-  if (!phone || !password) { log('Enter phone and password', 'error'); return; }
-  log(`Logging in ${phone}...`);
-  try {
-    const res = await httpPost('/login', { phone, password });
-    if (res.token) {
-      state.token = res.token;
-      state.myPhone = phone;
-      chatUser.textContent = 'Chats';
-      groupToggleBtn.classList.remove('hidden');
-      log('Login successful', 'highlight');
-      showAuth(false);
-      setStatus(false);
-      chatStatus.textContent = 'Authenticated';
-      connectWebSocket();
-    } else {
-      log('Login failed: ' + (res.message || res.raw || 'unknown error'), 'error');
+  // --- Load messages for a conversation ---
+  const loadMessages = useCallback(async (conversationId, isGroup = false) => {
+    try {
+      let data;
+      if (isGroup) {
+        data = await getGroupMessages(conversationId);
+        if (data.success && data.messages) {
+          setGroupMessagesCache(prev => ({ ...prev, [conversationId]: data.messages }));
+        }
+      } else {
+        data = await getMessages(conversationId);
+        if (data.success && data.messages) {
+          setMessagesCache(prev => ({ ...prev, [conversationId]: data.messages }));
+        }
+      }
+      return data;
+    } catch (error) {
+      console.error('Load messages error:', error);
+      return null;
     }
-  } catch (e) { log('Login error: ' + e.message, 'error'); }
-});
-passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') loginBtn.click(); });
+  }, []);
 
-// ============================================================
-// WEBSOCKET
-// ============================================================
-function connectWebSocket() {
-  if (state.ws && state.ws.readyState === WebSocket.OPEN) { log('Already connected'); return; }
-  if (!state.token) { log('No token. Login first.', 'error'); return; }
+  // --- Open a conversation ---
+  const openConversation = useCallback(async (id, type) => {
+    const isGroup = type === 'group';
+    setActiveChat({ type, id });
+    await loadMessages(id, isGroup);
+  }, [loadMessages]);
 
-  log('Connecting WebSocket...');
-  state.ws = new WebSocket('ws://localhost:8080');
-
-  state.ws.onopen = () => {
-    log('WebSocket opened', 'highlight');
-    setStatus(true);
-    chatStatus.textContent = 'Connected';
-    state.ws.send(JSON.stringify({ event: 'auth', data: state.token }));
-    log('Auth sent');
-  };
-
-  state.ws.onmessage = (event) => {
-    let msg;
-    try { msg = JSON.parse(event.data); } catch { log('Raw: ' + event.data.slice(0, 60)); return; }
-
-    log('Received: ' + JSON.stringify(msg).slice(0, 80));
-
-    // Auth rejected server-side
-    if (msg.event === 'auth' && msg.message) {
-      log('Auth failed: ' + msg.message, 'error');
+  // --- Send 1-on-1 message ---
+  const sendDirectMessage = useCallback((text) => {
+    if (!text.trim() || !activeChat || activeChat.type !== 'convo') return;
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      pushToast('WebSocket not connected');
       return;
     }
 
-    // Incoming chat message
-    if (msg.event === 'chat') {
-      const contentData = msg.content || msg.messageResult || msg;
-      const isSent = contentData.sender_phone === state.myPhone;
-      if (!isSent) {
-        const convId = contentData.conversation_id;
-        if (String(convId) === String(state.activeConvId)) {
-          addMessageUI(contentData, false);
-          if (contentData.id) markSeen(contentData.id, contentData.sender_phone);
-        } else {
-          const key = String(convId);
-          const list = state.pendingMessages.get(key) || [];
-          list.push(contentData);
-          state.pendingMessages.set(key, list);
-        }
-        loadConversations();
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const reciever_phonenum = activeChat.id;
+
+    const msg = { 
+      id: tempId, 
+      tempId, 
+      sender_phone: getMyPhone(), 
+      receiver_phone: reciever_phonenum,
+      content: text, 
+      created_at: new Date().toISOString(), 
+      status: 'sending' 
+    };
+    const convId = activeChat.id;
+    setMessagesCache(prev => ({
+      ...prev,
+      [convId]: [...(prev[convId] || []), msg]
+    }));
+
+    ws.send(JSON.stringify({
+      event: 'chat',
+      data: {
+        sender_phonenum: getMyPhone(),
+        reciever_phonenum: reciever_phonenum,
+        content: text,
+        tempid: tempId
       }
+    }));
+
+    setDraft('');
+  }, [activeChat]);
+
+  // --- Send group message ---
+  const sendGroupMessage = useCallback((text) => {
+    if (!text.trim() || !activeChat || activeChat.type !== 'group') return;
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      pushToast('WebSocket not connected');
+      return;
     }
 
-    // Delivery/sent tick for our own outgoing messages
-    if (msg.status === 'sent' || msg.status === 'delivered') {
-      if (msg.tempid) updateMessageStatus(msg.tempid, msg.correctid, msg.status);
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const groupId = activeChat.id;
+
+    const msg = {
+      id: tempId,
+      tempId,
+      sender_phone: getMyPhone(),
+      group_id: groupId,
+      content: text,
+      created_at: new Date().toISOString(),
+      status: 'sending'
+    };
+    setGroupMessagesCache(prev => ({
+      ...prev,
+      [groupId]: [...(prev[groupId] || []), msg]
+    }));
+
+    ws.send(JSON.stringify({
+      event: 'sendtoroom',
+      data: {
+        roomId: groupId,
+        sender_phone: getMyPhone(),
+        message: text,
+        tempmsgId: tempId
+      }
+    }));
+
+    setDraft('');
+  }, [activeChat]);
+
+  // --- Create group ---
+  const createGroup = useCallback(() => {
+    if (!newGroupName.trim()) {
+      pushToast('Please enter a group name');
+      return;
+    }
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      pushToast('WebSocket not connected');
+      return;
     }
 
-    // Someone read our message
-    if (msg.event === 'seen' && msg.messageId) {
-      updateSeenStatus(msg.messageId);
-    }
+    const members = newGroupMembers.split(',').map(p => p.trim()).filter(p => p);
+    ws.send(JSON.stringify({
+      event: 'create-room',
+      data: {
+        sender_phone: getMyPhone(),
+        group_name: newGroupName.trim(),
+        participants: members,
+        tempid: 'room_' + Date.now()
+      }
+    }));
 
-    if (msg.event === 'typing') {
-      typingIndicator.textContent = (msg.sender_phone || 'Someone') + ' is typing…';
-      clearTimeout(state.typingTimeout);
-      state.typingTimeout = setTimeout(() => { typingIndicator.textContent = ''; }, 2000);
-    }
+    setShowNewGroup(false);
+    setNewGroupName('');
+    setNewGroupMembers('');
+    pushToast('Creating group...');
+  }, [newGroupName, newGroupMembers]);
 
-    // Group / room events
-    if (msg.message === 'room created succesfully') {
-      state.lastRoomId = msg.correctid;
-      activeRoomId.textContent = msg.correctid;
-      activeRoomName.textContent = state.pendingGroupName || '';
-      createGroupSection.classList.add('hidden');
-      addMemberSection.classList.remove('hidden');
-      newGroupName.value = '';
-      log('Group created (room #' + msg.correctid + ')', 'highlight');
+  // --- Add member to group ---
+  const addMember = useCallback((groupId, phone) => {
+    if (!phone) return;
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      pushToast('WebSocket not connected');
+      return;
     }
-    if (msg.message === 'user added to the room') {
-      log('Member added to the room', 'highlight');
+    ws.send(JSON.stringify({
+      event: 'addtoroom',
+      data: {
+        roomId: groupId,
+        receiver_phone: phone,
+        sender_phone: getMyPhone()
+      }
+    }));
+  }, []);
+
+  // --- Leave group ---
+  const leaveGroup = useCallback((groupId) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      pushToast('WebSocket not connected');
+      return;
     }
-    if (msg.event === 'added to a room') {
-      log(`You were added to "${msg.groupName}" by ${msg.adminPhone}`, 'highlight');
+    ws.send(JSON.stringify({
+      event: 'leaveroom',
+      data: {
+        sender_phone: getMyPhone(),
+        roomId: groupId
+      }
+    }));
+  }, []);
+
+  // --- Delete group ---
+  const deleteGroup = useCallback((groupId) => {
+    if (!confirm('Delete this group permanently?')) return;
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      pushToast('WebSocket not connected');
+      return;
     }
-    if (msg.event === 'unathorized action' || msg.event === 'invalid room creds') {
-      log(msg.message, 'error');
+    ws.send(JSON.stringify({
+      event: 'delete-group',
+      data: { groupId }
+    }));
+  }, []);
+
+  // --- Mark message as seen ---
+  const markSeen = useCallback((messageId, otherPhone) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({
+      event: 'seen',
+      data: { messageId, rec_phone: otherPhone }
+    }));
+  }, []);
+
+  // --- Login ---
+  const handleLogin = useCallback(async (phone, password) => {
+    setAuthError('');
+    setIsLoading(true);
+    try {
+      const data = await login(phone, password);
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('myPhone', phone);
+        localStorage.setItem('myName', data.name || phone);
+        setMe({ phone, name: data.name || phone });
+        connectWebSocket();
+        pushToast('Login successful!');
+      } else {
+        setAuthError(data.message || data.raw || 'Login failed');
+      }
+    } catch (error) {
+      setAuthError('Network error: ' + error.message);
     }
-    if (msg.event === 'error') {
-      log('WS Error: ' + (msg.err_msg || msg.message), 'error');
+    setIsLoading(false);
+  }, [connectWebSocket]);
+
+  // --- Signup ---
+  const handleSignup = useCallback(async (phone, password, name) => {
+    setAuthError('');
+    setIsLoading(true);
+    try {
+      const data = await signup(phone, password, name);
+      if (data.message) {
+        pushToast('Account created! Please login.');
+        setScreen('login');
+      } else {
+        setAuthError(data.error || 'Signup failed');
+      }
+    } catch (error) {
+      setAuthError('Network error: ' + error.message);
     }
+    setIsLoading(false);
+  }, []);
+
+  // --- Logout ---
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('myPhone');
+    localStorage.removeItem('myName');
+    if (wsRef.current) wsRef.current.close();
+    setMe(null);
+    setActiveChat(null);
+    setConversations([]);
+    setMessagesCache({});
+    setGroupMessagesCache({});
+    setGroups([]);
+    pushToast('Logged out');
+  }, []);
+
+  // --- Check existing session on mount ---
+  useEffect(() => {
+    const token = getToken();
+    const phone = getMyPhone();
+    const name = getMyName();
+    if (token && phone) {
+      setMe({ phone, name: name || phone });
+      connectWebSocket();
+    }
+  }, []);
+
+  // --- Auto-scroll to bottom when messages change ---
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messagesCache, groupMessagesCache, activeChat]);
+
+  // ============================================================
+  // RENDER: AUTH
+  // ============================================================
+  if (!me) {
+    return (
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <p className="auth-word display">Wire</p>
+          <p className="auth-sub">Phone-number messaging with real backend.</p>
+          {authError && <div className="auth-error">{authError}</div>}
+          {screen === 'login' ? (
+            <LoginForm 
+              onSubmit={handleLogin} 
+              isLoading={isLoading} 
+            />
+          ) : (
+            <SignupForm 
+              onSubmit={handleSignup} 
+              isLoading={isLoading} 
+            />
+          )}
+          <p className="switch-line">
+            {screen === 'login' ? (
+              <>New here? <a onClick={() => { setScreen('signup'); setAuthError(''); }}>Create an account</a></>
+            ) : (
+              <>Already registered? <a onClick={() => { setScreen('login'); setAuthError(''); }}>Log in</a></>
+            )}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // RENDER: MAIN
+  // ============================================================
+  const myConvos = conversations.filter(c => 
+    c.user1_phone === getMyPhone() || c.user2_phone === getMyPhone()
+  );
+  const myGroups = groups.filter(g => 
+    g.participants && g.participants.includes(getMyPhone())
+  );
+
+  let activeConvo = null, activeGroup = null;
+  let activeMsgs = [];
+  
+  if (activeChat?.type === 'convo') {
+    activeConvo = conversations.find(c => c.id === activeChat.id);
+    activeMsgs = messagesCache[activeChat.id] || [];
+  } else if (activeChat?.type === 'group') {
+    activeGroup = groups.find(g => g.id === activeChat.id);
+    activeMsgs = groupMessagesCache[activeChat.id] || [];
+  }
+
+  const getOtherPhone = (conv) => {
+    const myPhone = getMyPhone();
+    if (conv.user1_phone === myPhone) return conv.user2_phone;
+    return conv.user1_phone;
   };
 
-  state.ws.onclose = () => {
-    log('WebSocket closed', 'error');
-    setStatus(false);
-    chatStatus.textContent = 'Disconnected';
-    state.ws = null;
+  const getOtherName = (conv) => {
+    return conv.other_user_name || conv.other_user_phone || 'Unknown';
   };
-  state.ws.onerror = () => log('WebSocket error', 'error');
+
+  return (
+    <div className="shell">
+      <div className="sidebar">
+        <div className="side-head">
+          <div className="side-head-row">
+            <div className="brand"><span className="dot"></span><span className="display">Wire</span></div>
+            <button className="logout" onClick={handleLogout}>Log out</button>
+          </div>
+          <div className="me">{me.name} · {me.phone}</div>
+        </div>
+        <div style={{padding:"12px 18px 0 18px"}}>
+          <div className="tabs">
+            <div className={"tab" + (activeTab === "chats" ? " active" : "")} onClick={() => setActiveTab("chats")}>Chats</div>
+            <div className={"tab" + (activeTab === "groups" ? " active" : "")} onClick={() => setActiveTab("groups")}>Groups</div>
+          </div>
+        </div>
+
+        {activeTab === "chats" ? (
+          <div className="new-row" style={{marginTop:12}}>
+            <input
+              placeholder="Start chat by phone number"
+              value={newChatPhone}
+              onChange={e => setNewChatPhone(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && openConversation(newChatPhone.trim(), 'convo')}
+            />
+            <button onClick={() => openConversation(newChatPhone.trim(), 'convo')}>Start</button>
+          </div>
+        ) : (
+          <div className="new-row" style={{marginTop:12}}>
+            <button style={{flex:1}} onClick={() => setShowNewGroup(true)}>+ New group</button>
+          </div>
+        )}
+
+        <div className="list">
+          {activeTab === "chats" && (
+            myConvos.length === 0 ? (
+              <div className="empty-list">No conversations yet. Start one above.</div>
+            ) : myConvos.map(c => {
+              const otherPhone = getOtherPhone(c);
+              const otherName = getOtherName(c);
+              const msgs = messagesCache[c.id] || [];
+              const last = msgs[msgs.length - 1];
+              const isActive = activeChat?.type === "convo" && activeChat.id === c.id;
+              return (
+                <div key={c.id}
+                     className={"row-item" + (isActive ? " active" : "")}
+                     onClick={() => openConversation(c.id, 'convo')}>
+                  <div className="avatar">{initials(otherName)}</div>
+                  <div className="row-text">
+                    <div className="row-name">
+                      <span>{otherName}</span>
+                      <span className="row-time">{last ? fmtTime(last.created_at) : ""}</span>
+                    </div>
+                    <div className="row-preview">
+                      {last ? (last.sender_phone === getMyPhone() ? "You: " : "") + last.content : "Say hello 👋"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+
+          {activeTab === "groups" && (
+            myGroups.length === 0 ? (
+              <div className="empty-list">No groups yet. Create one to get started.</div>
+            ) : myGroups.map(g => {
+              const msgs = groupMessagesCache[g.id] || [];
+              const last = msgs[msgs.length - 1];
+              const isActive = activeChat?.type === "group" && activeChat.id === g.id;
+              const isAdmin = g.admin_phone === getMyPhone();
+              return (
+                <div key={g.id}
+                     className={"row-item" + (isActive ? " active" : "")}
+                     onClick={() => openConversation(g.id, 'group')}>
+                  <div className="avatar group">{initials(g.group_name)}</div>
+                  <div className="row-text">
+                    <div className="row-name">
+                      <span>{g.group_name}</span>
+                      <span className="row-time">{last ? fmtTime(last.created_at) : ""}</span>
+                    </div>
+                    <div className="row-preview">
+                      {last ? (last.sender_phone === getMyPhone() ? "You: " : (last.sender_name || last.sender_phone) + ": ") + last.content : `${g.participants ? g.participants.length : 0} members`}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {activeChat && (activeConvo || activeGroup) ? (
+        <div className="chat-pane">
+          <div className="chat-head">
+            <div className="chat-head-left">
+              <div className={"avatar" + (activeGroup ? " group" : "")}>
+                {initials(activeGroup ? activeGroup.group_name : getOtherName(activeConvo))}
+              </div>
+              <div>
+                <div className="chat-head-name">
+                  {activeGroup ? activeGroup.group_name : getOtherName(activeConvo)}
+                </div>
+                <div className="chat-head-sub">
+                  {activeGroup
+                    ? `${activeGroup.participants ? activeGroup.participants.length : 0} members${activeGroup.admin_phone === getMyPhone() ? " · you're admin" : ""}`
+                    : "online"}
+                </div>
+              </div>
+            </div>
+            <div className="head-actions">
+              {activeGroup && <button className="icon-btn" onClick={() => setShowMembers(true)}>Members</button>}
+              {activeGroup && activeGroup.admin_phone === getMyPhone() && (
+                <button className="icon-btn danger" onClick={() => deleteGroup(activeGroup.id)}>Delete</button>
+              )}
+              {activeGroup && <button className="icon-btn danger" onClick={() => leaveGroup(activeGroup.id)}>Leave</button>}
+            </div>
+          </div>
+
+          <div className="messages">
+            <div className="system-line">
+              {activeGroup ? `You are in "${activeGroup.group_name}"` : "Start of conversation"}
+            </div>
+            {activeMsgs.map(m => {
+              const isMine = m.sender_phone === getMyPhone();
+              return (
+                <div key={m.id} className={"bubble-row" + (isMine ? " mine" : "")}>
+                  <div className={"bubble" + (isMine ? " mine" : " theirs")}>
+                    {activeGroup && !isMine && m.sender_name && (
+                      <div className="sender-tag">{m.sender_name}</div>
+                    )}
+                    {m.content}
+                    <div className="meta">
+                      <span>{fmtTime(m.created_at)}</span>
+                      {isMine && !activeGroup && m.status && (
+                        <span>{m.status === 'seen' ? '✓✓' : m.status === 'delivered' ? '✓✓' : '✓'}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {typingFrom && (activeConvo?.user1_phone === typingFrom || activeConvo?.user2_phone === typingFrom || activeGroup?.participants?.includes(typingFrom)) && (
+            <div className="typing-row">{typingFrom} is typing…</div>
+          )}
+
+          <div className="composer">
+            <input
+              placeholder={activeGroup ? "Message the group" : "Type a message"}
+              value={draft}
+              onChange={e => {
+                setDraft(e.target.value);
+                const ws = wsRef.current;
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                  const target = activeGroup ? activeGroup.id : (activeConvo ? getOtherPhone(activeConvo) : '');
+                  if (target) {
+                    ws.send(JSON.stringify({
+                      event: 'typing',
+                      data: {
+                        sender_phone: getMyPhone(),
+                        reciever_phonenum: target
+                      }
+                    }));
+                  }
+                }
+              }}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  activeGroup ? sendGroupMessage(draft) : sendDirectMessage(draft);
+                }
+              }}
+            />
+            <button
+              className="send-btn"
+              disabled={!draft.trim()}
+              onClick={() => activeGroup ? sendGroupMessage(draft) : sendDirectMessage(draft)}
+            >➤</button>
+          </div>
+        </div>
+      ) : (
+        <div className="placeholder-pane">
+          <p className="display">Pick a conversation</p>
+          <p style={{maxWidth:320, fontSize:13.5}}>Choose a chat or group on the left, or start a new one.</p>
+        </div>
+      )}
+
+      {/* New Group Modal */}
+      {showNewGroup && (
+        <div className="overlay" onClick={() => setShowNewGroup(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>New group</h3>
+            <p className="modal-sub">You'll be the admin. You can add members after creation.</p>
+            <div className="modal-row">
+              <input 
+                placeholder="Group name" 
+                value={newGroupName} 
+                onChange={e => setNewGroupName(e.target.value)}
+                style={{width:"100%", padding:"10px 12px", borderRadius:8, border:"1px solid var(--line)", fontSize:14}} 
+              />
+            </div>
+            <div className="modal-row">
+              <input 
+                placeholder="Member phone numbers (comma separated)" 
+                value={newGroupMembers} 
+                onChange={e => setNewGroupMembers(e.target.value)}
+                style={{width:"100%", padding:"10px 12px", borderRadius:8, border:"1px solid var(--line)", fontSize:14}} 
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn secondary" onClick={() => setShowNewGroup(false)} style={{flex:1}}>Cancel</button>
+              <button className="btn" onClick={createGroup} style={{flex:1}}>Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Members Modal */}
+      {showMembers && activeGroup && (
+        <div className="overlay" onClick={() => setShowMembers(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>{activeGroup.group_name}</h3>
+            <p className="modal-sub">{activeGroup.participants ? activeGroup.participants.length : 0} members</p>
+            <div className="member-list">
+              {activeGroup.participants && activeGroup.participants.map(p => (
+                <div className="member-row" key={p}>
+                  <span>
+                    {p === getMyPhone() ? 'You' : p}
+                    {activeGroup.admin_phone === p && <span className="tag">ADMIN</span>}
+                  </span>
+                  {activeGroup.admin_phone === getMyPhone() && p !== getMyPhone() && (
+                    <button onClick={() => {
+                      const ws = wsRef.current;
+                      if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                          event: 'removeuser',
+                          data: {
+                            roomId: activeGroup.id,
+                            receiver_phone: p,
+                            sender_phone: getMyPhone()
+                          }
+                        }));
+                        pushToast('Removing member...');
+                      }
+                    }}>Remove</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {activeGroup.admin_phone === getMyPhone() && (
+              <div className="modal-row" style={{display:"flex", gap:8, marginTop:14}}>
+                <input 
+                  placeholder="Add member by phone" 
+                  id="addMemberInput"
+                  style={{flex:1, padding:"9px 10px", borderRadius:7, border:"1px solid var(--line)", fontSize:13}} 
+                />
+                <button className="icon-btn" onClick={() => {
+                  const input = document.getElementById('addMemberInput');
+                  if (input) {
+                    addMember(activeGroup.id, input.value.trim());
+                    input.value = '';
+                  }
+                }}>Add</button>
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="btn secondary" onClick={() => setShowMembers(false)} style={{flex:1}}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="toast-stack">
+        {toasts.map(t => <div key={t.id} className="toast">{t.text}</div>)}
+      </div>
+    </div>
+  );
 }
 
 // ============================================================
-// SEND MESSAGE + TYPING
+// AUTH COMPONENTS
 // ============================================================
-function sendMessage() {
-  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { log('Not connected to WebSocket', 'error'); return; }
-  const recipient = recipientInput.value.trim(), text = messageInput.value.trim();
-  if (!recipient || !text) { log('Enter recipient and message', 'error'); return; }
-
-  const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-
-  addMessageUI({
-    tempId, content: text, sender_phone: state.myPhone, sender_name: 'You',
-    status: 'sending', created_at: new Date().toISOString()
-  }, true);
-
-  state.ws.send(JSON.stringify({
-    event: 'chat',
-    data: { sender_phonenum: state.myPhone, reciever_phonenum: recipient, content: text, tempid: tempId }
-  }));
-
-  log('Sent: ' + text, 'highlight');
-  messageInput.value = '';
+function LoginForm({ onSubmit, isLoading }) {
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  return (
+    <div>
+      <div className="field">
+        <label>Phone number</label>
+        <input 
+          value={phone} 
+          onChange={e => setPhone(e.target.value)} 
+          placeholder="+919876543210" 
+        />
+      </div>
+      <div className="field">
+        <label>Password</label>
+        <input 
+          type="password" 
+          value={password} 
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && onSubmit(phone.trim(), password)} 
+          placeholder="••••••" 
+        />
+      </div>
+      <button className="btn" onClick={() => onSubmit(phone.trim(), password)} disabled={isLoading}>
+        {isLoading ? 'Logging in...' : 'Log in'}
+      </button>
+    </div>
+  );
 }
-sendBtn.addEventListener('click', sendMessage);
-messageInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 
-// Lightweight typing event, throttled
-let lastTypingSent = 0;
-messageInput.addEventListener('input', () => {
-  const recipient = recipientInput.value.trim();
-  if (!recipient || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
-  const now = Date.now();
-  if (now - lastTypingSent < 1500) return;
-  lastTypingSent = now;
-  state.ws.send(JSON.stringify({
-    event: 'typing',
-    data: { sender_phone: state.myPhone, reciever_phonenum: recipient }
-  }));
-});
+function SignupForm({ onSubmit, isLoading }) {
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  return (
+    <div>
+      <div className="field">
+        <label>Full name</label>
+        <input 
+          value={name} 
+          onChange={e => setName(e.target.value)} 
+          placeholder="Your name" 
+        />
+      </div>
+      <div className="field">
+        <label>Phone number</label>
+        <input 
+          value={phone} 
+          onChange={e => setPhone(e.target.value)} 
+          placeholder="+919876543210" 
+        />
+      </div>
+      <div className="field">
+        <label>Password</label>
+        <input 
+          type="password" 
+          value={password} 
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && onSubmit(phone.trim(), password, name.trim())} 
+          placeholder="Choose a password" 
+        />
+      </div>
+      <button className="btn" onClick={() => onSubmit(phone.trim(), password, name.trim())} disabled={isLoading}>
+        {isLoading ? 'Creating...' : 'Create account'}
+      </button>
+    </div>
+  );
+}
 
 // ============================================================
-// INIT
+// RENDER
 // ============================================================
-log('Stark Chat ready', 'highlight');
-log('HTTP: ' + API_BASE);
-log('WS: ws://localhost:8080');
-log('Login to start chatting');
+ReactDOM.createRoot(document.getElementById("app")).render(<App />);
 </script>
 </body>
 </html>
