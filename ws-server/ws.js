@@ -541,6 +541,11 @@ wss.on("connection", async (socket) => {
             }))
 
         }
+        else if(topic=='deletegroup'){
+            //check if the user is the admin , if yes then delete the entry 
+            //remove the entry from the local mapping
+            //send a messaeg to all the participants about this 
+        }
     });
 });
 

@@ -477,11 +477,6 @@ function initials(name) {
   if (!name) return '?';
   return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
-function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
-}
 function getToken() {
   return localStorage.getItem('token');
 }
@@ -559,6 +554,7 @@ function App() {
   const typingTimeout = useRef(null);
   const messagesEndRef = useRef(null);
   const wsRef = useRef(null);
+  const reconnectTimeout = useRef(null);
 
   // --- Toast system ---
   function pushToast(text) {
@@ -567,21 +563,28 @@ function App() {
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3200);
   }
 
-  // --- WebSocket connection ---
+  // --- WebSocket connection with reconnect ---
   const connectWebSocket = useCallback(() => {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      console.log('No token, skipping WebSocket connection');
+      return null;
+    }
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      return wsRef.current;
+    }
 
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      pushToast('WebSocket connected');
+      console.log('WebSocket connected');
+      pushToast('Connected to server');
       ws.send(JSON.stringify({ event: 'auth', data: token }));
     };
 
     ws.onmessage = (event) => {
-      // ✅ Handle both JSON and plain text messages
       let msg = null;
       let isJson = false;
       
@@ -590,24 +593,22 @@ function App() {
         isJson = true;
         console.log('WS message (JSON):', msg);
       } catch (e) {
-        // ✅ Not JSON - treat as plain text
         console.log('WS message (plain text):', event.data);
-      }
-
-      // ✅ Handle plain text messages (like "connected")
-      if (!isJson) {
         if (event.data === 'connected') {
           pushToast('Connected to WebSocket server');
         }
         return;
       }
 
+      if (!isJson) return;
+
       // --- Handle JSON messages ---
 
-      // Auth success
+      // Auth success - load conversations and groups
       if (msg.event === 'auth_success') {
         pushToast('Authenticated with WebSocket');
         loadConversations();
+        // Groups will be loaded via group-data event
       }
 
       // Auth failed
@@ -615,6 +616,7 @@ function App() {
         pushToast('Auth failed: ' + msg.message);
         localStorage.removeItem('token');
         setMe(null);
+        ws.close();
       }
 
       // Group data from auth
@@ -622,48 +624,106 @@ function App() {
         const groupData = msg.message || msg.data || [];
         if (Array.isArray(groupData) && groupData.length > 0) {
           setGroups(groupData);
+          // Update in-memory groups cache
+          groupData.forEach(g => {
+            if (!groups.some(existing => existing.id === g.id)) {
+              setGroups(prev => [...prev, g]);
+            }
+          });
         }
       }
 
       // Incoming 1-on-1 message
-      if (msg.event === 'chat' || msg.event === 'newMessage') {
-        const data = msg.data || msg.content || msg;
-        const convId = data.conversation_id;
-        if (convId) {
-          setMessagesCache(prev => {
-            const existing = prev[convId] || [];
-            if (existing.find(m => m.id === data.id)) return prev;
-            return { ...prev, [convId]: [...existing, data] };
-          });
-          setConversations(prev => prev.map(c => 
-            c.id === convId ? { ...c, last_message: data.content, last_message_at: data.created_at } : c
-          ));
+      if (msg.event === 'chat') {
+        const messageData = msg.content || msg.messageResult || msg.data;
+        if (messageData) {
+          // Determine conversation ID
+          const convId = messageData.conversation_id;
+          if (convId) {
+            // Check if message already exists
+            setMessagesCache(prev => {
+              const existing = prev[convId] || [];
+              if (existing.find(m => m.id === messageData.id)) return prev;
+              return { ...prev, [convId]: [...existing, messageData] };
+            });
+            
+            // Update conversation list
+            setConversations(prev => {
+              const existing = prev.find(c => c.id === convId);
+              if (existing) {
+                return prev.map(c => 
+                  c.id === convId ? { ...c, last_message: messageData.content, last_message_at: messageData.created_at } : c
+                );
+              }
+              // New conversation - add it
+              const myPhone = getMyPhone();
+              const otherPhone = messageData.sender_phone === myPhone ? messageData.receiver_phone : messageData.sender_phone;
+              return [
+                {
+                  id: convId,
+                  user1_phone: messageData.sender_phone === myPhone ? myPhone : messageData.sender_phone,
+                  user2_phone: messageData.sender_phone === myPhone ? messageData.receiver_phone : messageData.sender_phone,
+                  other_user_name: otherPhone,
+                  other_user_phone: otherPhone,
+                  last_message: messageData.content,
+                  last_message_at: messageData.created_at
+                },
+                ...prev.filter(c => c.id !== convId)
+              ];
+            });
+
+            // ✅ Auto-mark as seen if the message is from someone else and we're in this chat
+            const myPhone = getMyPhone();
+            if (messageData.sender_phone !== myPhone && activeChat?.type === 'convo' && activeChat.id === convId) {
+              const conv = conversations.find(c => c.id === convId);
+              const otherPhone = conv ? (conv.user1_phone === myPhone ? conv.user2_phone : conv.user1_phone) : null;
+              if (otherPhone) {
+                setTimeout(() => markSeen(messageData.id, otherPhone), 500);
+              }
+            }
+          }
         }
       }
 
       // Incoming group message
-      if (msg.event === 'group_message' || msg.event === 'group message recieved') {
-        const data = msg.data || msg.message || msg;
-        const groupId = data.group_id || data.groupId;
-        if (groupId) {
-          setGroupMessagesCache(prev => {
-            const existing = prev[groupId] || [];
-            if (existing.find(m => m.id === data.id)) return prev;
-            return { ...prev, [groupId]: [...existing, data] };
-          });
+      if (msg.event === 'group message recieved' || msg.event === 'group_message') {
+        const messageData = msg.message || msg.data;
+        if (messageData) {
+          const groupId = messageData.group_id;
+          if (groupId) {
+            // Check if message already exists
+            setGroupMessagesCache(prev => {
+              const existing = prev[groupId] || [];
+              if (existing.find(m => m.id === messageData.id)) return prev;
+              return { ...prev, [groupId]: [...existing, messageData] };
+            });
+          }
         }
       }
 
-      // Message status updates
+      // ✅ Message status updates (sent/delivered)
       if (msg.status === 'sent' || msg.status === 'delivered') {
         if (msg.tempid) {
+          // Find the message by tempId in 1-on-1 messages
           for (const convId in messagesCache) {
             const idx = messagesCache[convId].findIndex(m => m.tempId === msg.tempid);
             if (idx !== -1) {
               setMessagesCache(prev => {
                 const updated = [...prev[convId]];
-                updated[idx] = { ...updated[idx], id: msg.correctid, status: msg.status };
+                updated[idx] = { ...updated[idx], id: msg.correctid, status: msg.status, tempId: null };
                 return { ...prev, [convId]: updated };
+              });
+              break;
+            }
+          }
+          // Also check group messages
+          for (const groupId in groupMessagesCache) {
+            const idx = groupMessagesCache[groupId].findIndex(m => m.tempId === msg.tempid);
+            if (idx !== -1) {
+              setGroupMessagesCache(prev => {
+                const updated = [...prev[groupId]];
+                updated[idx] = { ...updated[idx], id: msg.correctid, status: msg.status, tempId: null };
+                return { ...prev, [groupId]: updated };
               });
               break;
             }
@@ -671,16 +731,28 @@ function App() {
         }
       }
 
-      // Seen status
-      if (msg.event === 'messageSeen' && msg.messageId) {
-        // Update UI for seen message
+      // ✅ Seen status (sender receives this)
+      if (msg.event === 'seen') {
+        const messageId = msg.messageId;
+        // Update the message status to 'seen' in cache
+        for (const convId in messagesCache) {
+          const idx = messagesCache[convId].findIndex(m => m.id === messageId);
+          if (idx !== -1) {
+            setMessagesCache(prev => {
+              const updated = [...prev[convId]];
+              updated[idx] = { ...updated[idx], status: 'seen' };
+              return { ...prev, [convId]: updated };
+            });
+            break;
+          }
+        }
       }
 
       // Typing indicator
       if (msg.event === 'typing') {
         setTypingFrom(msg.sender_phone);
         clearTimeout(typingTimeout.current);
-        typingTimeout.current = setTimeout(() => setTypingFrom(null), 2500);
+        typingTimeout.current = setTimeout(() => setTypingFrom(null), 3000);
       }
 
       // Group events
@@ -689,7 +761,7 @@ function App() {
         loadConversations();
       }
       if (msg.event === 'added to a room') {
-        pushToast(`You were added to "${msg.groupName}"`);
+        pushToast(`You were added to "${msg.groupName || 'a group'}"`);
         loadConversations();
       }
       if (msg.event === 'user added' || msg.message === 'user added to the room') {
@@ -707,66 +779,130 @@ function App() {
         setActiveChat(null);
       }
       if (msg.event === 'notify others' && msg.message) {
-        // System notification
+        // System notification - ignore or show quietly
       }
       if (msg.event === 'error') {
         pushToast('Error: ' + (msg.err_msg || msg.message));
       }
+      if (msg.event === 'removal success') {
+        pushToast('User removed successfully');
+        loadConversations();
+      }
+      if (msg.event === 'unathorized action') {
+        pushToast('Unauthorized: ' + (msg.message || ''));
+      }
     };
 
     ws.onclose = () => {
-      pushToast('WebSocket disconnected');
-      setTimeout(connectWebSocket, 3000);
+      console.log('WebSocket disconnected');
+      pushToast('Disconnected from server');
+      // Attempt reconnect after 5 seconds
+      if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
+      reconnectTimeout.current = setTimeout(() => {
+        console.log('Attempting to reconnect...');
+        connectWebSocket();
+      }, 5000);
     };
 
     ws.onerror = (error) => {
       console.error('WS error:', error);
+      pushToast('WebSocket error');
     };
 
     return ws;
-  }, [messagesCache]);
+  }, []);
 
   // --- Load conversations ---
   const loadConversations = useCallback(async () => {
     try {
       const data = await getConversations();
       console.log('Conversations:', data);
-      if (data.success && data.conversations) {
+      
+      // Handle different response formats
+      if (data && data.success && data.conversations) {
         setConversations(data.conversations);
       } else if (Array.isArray(data)) {
         setConversations(data);
-      } else if (data.raw && data.raw.includes('you dont have any active')) {
+      } else if (data && data.raw && typeof data.raw === 'string' && data.raw.includes('no active conversations')) {
         setConversations([]);
+      } else if (typeof data === 'string' && data.includes('no active conversations')) {
+        setConversations([]);
+      } else {
+        // Try to parse as array if it's an object with numeric keys
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          const arr = Object.values(data);
+          if (arr.length > 0 && arr[0] && typeof arr[0] === 'object') {
+            setConversations(arr);
+          } else {
+            setConversations([]);
+          }
+        } else {
+          setConversations([]);
+        }
       }
     } catch (error) {
       console.error('Load conversations error:', error);
+      setConversations([]);
     }
   }, []);
 
   // --- Load messages for a conversation ---
   const loadMessages = useCallback(async (conversationId, isGroup = false) => {
+    if (!conversationId) return null;
     try {
       let data;
       if (isGroup) {
         data = await getGroupMessages(conversationId);
-        if (data.success && data.messages) {
+        if (data && data.success && data.messages) {
           setGroupMessagesCache(prev => ({ ...prev, [conversationId]: data.messages }));
+        } else if (Array.isArray(data)) {
+          setGroupMessagesCache(prev => ({ ...prev, [conversationId]: data }));
         }
       } else {
         data = await getMessages(conversationId);
-        if (data.success && data.messages) {
+        if (data && data.success && data.messages) {
           setMessagesCache(prev => ({ ...prev, [conversationId]: data.messages }));
+        } else if (Array.isArray(data)) {
+          setMessagesCache(prev => ({ ...prev, [conversationId]: data }));
         }
       }
+      
+      // ✅ Mark the most recent received message as seen
+      const msgs = isGroup ? 
+        (data?.messages || (Array.isArray(data) ? data : [])) : 
+        (data?.messages || (Array.isArray(data) ? data : []));
+      
+      if (msgs && msgs.length > 0) {
+        const myPhone = getMyPhone();
+        let lastReceivedMsg = null;
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].sender_phone !== myPhone && msgs[i].status !== 'seen') {
+            lastReceivedMsg = msgs[i];
+            break;
+          }
+        }
+        if (lastReceivedMsg && lastReceivedMsg.id && !isGroup) {
+          // Find the other phone number for the conversation
+          const conv = conversations.find(c => c.id === conversationId);
+          if (conv) {
+            const otherPhone = conv.user1_phone === myPhone ? conv.user2_phone : conv.user1_phone;
+            if (otherPhone) {
+              markSeen(lastReceivedMsg.id, otherPhone);
+            }
+          }
+        }
+      }
+      
       return data;
     } catch (error) {
       console.error('Load messages error:', error);
       return null;
     }
-  }, []);
+  }, [conversations]);
 
   // --- Open a conversation ---
   const openConversation = useCallback(async (id, type) => {
+    if (!id) return;
     const isGroup = type === 'group';
     setActiveChat({ type, id });
     await loadMessages(id, isGroup);
@@ -782,35 +918,65 @@ function App() {
     }
 
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-    const reciever_phonenum = activeChat.id;
+    const convId = activeChat.id;
+    const myPhone = getMyPhone();
+    
+    // Determine the receiver phone number
+    let receiverPhone = null;
+    if (convId && !convId.startsWith('temp_')) {
+      const conv = conversations.find(c => c.id === convId);
+      if (conv) {
+        receiverPhone = conv.user1_phone === myPhone ? conv.user2_phone : conv.user1_phone;
+      }
+    } else {
+      // For temp conversations, get from the conversation
+      const conv = conversations.find(c => c.id === convId);
+      if (conv) {
+        receiverPhone = conv.user1_phone === myPhone ? conv.user2_phone : conv.user1_phone;
+      }
+    }
 
+    if (!receiverPhone) {
+      pushToast('Could not determine recipient');
+      return;
+    }
+
+    // Optimistic UI
     const msg = { 
       id: tempId, 
       tempId, 
-      sender_phone: getMyPhone(), 
-      receiver_phone: reciever_phonenum,
+      sender_phone: myPhone, 
+      receiver_phone: receiverPhone,
       content: text, 
       created_at: new Date().toISOString(), 
-      status: 'sending' 
+      status: 'sending',
+      conversation_id: convId
     };
-    const convId = activeChat.id;
+    
+    // If it's a temp conversation, we need to update the conversation ID after the message is sent
+    const isTempConv = convId.startsWith('temp_');
+    
     setMessagesCache(prev => ({
       ...prev,
       [convId]: [...(prev[convId] || []), msg]
     }));
 
+    // Send via WebSocket
     ws.send(JSON.stringify({
       event: 'chat',
       data: {
-        sender_phonenum: getMyPhone(),
-        reciever_phonenum: reciever_phonenum,
+        sender_phonenum: myPhone,
+        reciever_phonenum: receiverPhone,
         content: text,
         tempid: tempId
       }
     }));
 
     setDraft('');
-  }, [activeChat]);
+    
+    // If temp conversation, the backend will create the conversation
+    // The response will contain the correct conversation ID
+  }, [activeChat, conversations]);
 
   // --- Send group message ---
   const sendGroupMessage = useCallback((text) => {
@@ -823,11 +989,12 @@ function App() {
 
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
     const groupId = activeChat.id;
+    const myPhone = getMyPhone();
 
     const msg = {
       id: tempId,
       tempId,
-      sender_phone: getMyPhone(),
+      sender_phone: myPhone,
       group_id: groupId,
       content: text,
       created_at: new Date().toISOString(),
@@ -842,7 +1009,7 @@ function App() {
       event: 'sendtoroom',
       data: {
         roomId: groupId,
-        sender_phone: getMyPhone(),
+        sender_phone: myPhone,
         message: text,
         tempmsgId: tempId
       }
@@ -850,6 +1017,57 @@ function App() {
 
     setDraft('');
   }, [activeChat]);
+
+  // --- Start a new conversation ---
+  const startConversation = useCallback((phone) => {
+    if (!phone) {
+      pushToast('Please enter a phone number');
+      return;
+    }
+    
+    const myPhone = getMyPhone();
+    if (phone === myPhone) {
+      pushToast('You cannot chat with yourself');
+      return;
+    }
+    
+    // Check if conversation already exists
+    const existingConvo = conversations.find(c => 
+      (c.user1_phone === myPhone && c.user2_phone === phone) ||
+      (c.user1_phone === phone && c.user2_phone === myPhone)
+    );
+    
+    if (existingConvo) {
+      openConversation(existingConvo.id, 'convo');
+      pushToast('Conversation already exists');
+      return;
+    }
+    
+    // Create temporary conversation
+    const tempId = 'temp_' + Date.now();
+    const newConv = {
+      id: tempId,
+      user1_phone: myPhone,
+      user2_phone: phone,
+      other_user_name: phone,
+      other_user_phone: phone,
+      last_message: 'Start a conversation',
+      last_message_at: new Date().toISOString()
+    };
+    
+    setConversations(prev => [newConv, ...prev]);
+    setMessagesCache(prev => ({ ...prev, [tempId]: [] }));
+    setActiveChat({ type: 'convo', id: tempId });
+    setNewChatPhone('');
+    
+    pushToast(`Starting conversation with ${phone}...`);
+    
+    // Focus on message input
+    setTimeout(() => {
+      const input = document.querySelector('.composer input');
+      if (input) input.focus();
+    }, 100);
+  }, [conversations, openConversation]);
 
   // --- Create group ---
   const createGroup = useCallback(() => {
@@ -882,7 +1100,10 @@ function App() {
 
   // --- Add member to group ---
   const addMember = useCallback((groupId, phone) => {
-    if (!phone) return;
+    if (!phone) {
+      pushToast('Please enter a phone number');
+      return;
+    }
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       pushToast('WebSocket not connected');
@@ -896,10 +1117,12 @@ function App() {
         sender_phone: getMyPhone()
       }
     }));
+    pushToast(`Adding ${phone}...`);
   }, []);
 
   // --- Leave group ---
   const leaveGroup = useCallback((groupId) => {
+    if (!confirm('Are you sure you want to leave this group?')) return;
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       pushToast('WebSocket not connected');
@@ -916,7 +1139,7 @@ function App() {
 
   // --- Delete group ---
   const deleteGroup = useCallback((groupId) => {
-    if (!confirm('Delete this group permanently?')) return;
+    if (!confirm('Delete this group permanently? This action cannot be undone.')) return;
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       pushToast('WebSocket not connected');
@@ -926,15 +1149,21 @@ function App() {
       event: 'delete-group',
       data: { groupId }
     }));
+    pushToast('Deleting group...');
   }, []);
 
   // --- Mark message as seen ---
   const markSeen = useCallback((messageId, otherPhone) => {
+    if (!messageId || !otherPhone) return;
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    
     ws.send(JSON.stringify({
       event: 'seen',
-      data: { messageId, rec_phone: otherPhone }
+      data: { 
+        messageId: messageId, 
+        rec_phone: otherPhone 
+      }
     }));
   }, []);
 
@@ -944,15 +1173,16 @@ function App() {
     setIsLoading(true);
     try {
       const data = await login(phone, password);
-      if (data.token) {
+      if (data && data.token) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('myPhone', phone);
         localStorage.setItem('myName', data.name || phone);
         setMe({ phone, name: data.name || phone });
-        connectWebSocket();
+        // Let WebSocket connect after login
+        setTimeout(() => connectWebSocket(), 300);
         pushToast('Login successful!');
       } else {
-        setAuthError(data.message || data.raw || 'Login failed');
+        setAuthError(data?.message || data?.raw || 'Login failed');
       }
     } catch (error) {
       setAuthError('Network error: ' + error.message);
@@ -966,11 +1196,11 @@ function App() {
     setIsLoading(true);
     try {
       const data = await signup(phone, password, name);
-      if (data.message) {
+      if (data && data.message) {
         pushToast('Account created! Please login.');
         setScreen('login');
       } else {
-        setAuthError(data.error || 'Signup failed');
+        setAuthError(data?.error || data?.message || 'Signup failed');
       }
     } catch (error) {
       setAuthError('Network error: ' + error.message);
@@ -983,7 +1213,14 @@ function App() {
     localStorage.removeItem('token');
     localStorage.removeItem('myPhone');
     localStorage.removeItem('myName');
-    if (wsRef.current) wsRef.current.close();
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (reconnectTimeout.current) {
+      clearTimeout(reconnectTimeout.current);
+      reconnectTimeout.current = null;
+    }
     setMe(null);
     setActiveChat(null);
     setConversations([]);
@@ -1000,13 +1237,22 @@ function App() {
     const name = getMyName();
     if (token && phone) {
       setMe({ phone, name: name || phone });
-      connectWebSocket();
+      // Connect WebSocket after a small delay
+      setTimeout(() => connectWebSocket(), 500);
     }
+    
+    return () => {
+      if (reconnectTimeout.current) {
+        clearTimeout(reconnectTimeout.current);
+      }
+    };
   }, []);
 
   // --- Auto-scroll to bottom when messages change ---
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messagesCache, groupMessagesCache, activeChat]);
 
   // ============================================================
@@ -1046,32 +1292,37 @@ function App() {
   // RENDER: MAIN
   // ============================================================
   const myConvos = conversations.filter(c => 
-    c.user1_phone === getMyPhone() || c.user2_phone === getMyPhone()
+    c && (c.user1_phone === getMyPhone() || c.user2_phone === getMyPhone())
   );
   const myGroups = groups.filter(g => 
-    g.participants && g.participants.includes(getMyPhone())
+    g && g.participants && g.participants.includes(getMyPhone())
   );
 
   let activeConvo = null, activeGroup = null;
   let activeMsgs = [];
   
   if (activeChat?.type === 'convo') {
-    activeConvo = conversations.find(c => c.id === activeChat.id);
+    activeConvo = conversations.find(c => c && c.id === activeChat.id);
     activeMsgs = messagesCache[activeChat.id] || [];
   } else if (activeChat?.type === 'group') {
-    activeGroup = groups.find(g => g.id === activeChat.id);
+    activeGroup = groups.find(g => g && g.id === activeChat.id);
     activeMsgs = groupMessagesCache[activeChat.id] || [];
   }
 
   const getOtherPhone = (conv) => {
+    if (!conv) return '';
     const myPhone = getMyPhone();
     if (conv.user1_phone === myPhone) return conv.user2_phone;
     return conv.user1_phone;
   };
 
   const getOtherName = (conv) => {
+    if (!conv) return 'Unknown';
     return conv.other_user_name || conv.other_user_phone || 'Unknown';
   };
+
+  const isTempConv = activeChat && activeChat.type === 'convo' && 
+    typeof activeChat.id === 'string' && activeChat.id.startsWith('temp_');
 
   return (
     <div className="shell">
@@ -1081,7 +1332,7 @@ function App() {
             <div className="brand"><span className="dot"></span><span className="display">Wire</span></div>
             <button className="logout" onClick={handleLogout}>Log out</button>
           </div>
-          <div className="me">{me.name} · {me.phone}</div>
+          <div className="me">{me.name || me.phone} · {me.phone}</div>
         </div>
         <div style={{padding:"12px 18px 0 18px"}}>
           <div className="tabs">
@@ -1096,9 +1347,9 @@ function App() {
               placeholder="Start chat by phone number"
               value={newChatPhone}
               onChange={e => setNewChatPhone(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && openConversation(newChatPhone.trim(), 'convo')}
+              onKeyDown={e => e.key === "Enter" && startConversation(newChatPhone.trim())}
             />
-            <button onClick={() => openConversation(newChatPhone.trim(), 'convo')}>Start</button>
+            <button onClick={() => startConversation(newChatPhone.trim())}>Start</button>
           </div>
         ) : (
           <div className="new-row" style={{marginTop:12}}>
@@ -1111,23 +1362,32 @@ function App() {
             myConvos.length === 0 ? (
               <div className="empty-list">No conversations yet. Start one above.</div>
             ) : myConvos.map(c => {
+              if (!c) return null;
               const otherPhone = getOtherPhone(c);
               const otherName = getOtherName(c);
               const msgs = messagesCache[c.id] || [];
               const last = msgs[msgs.length - 1];
               const isActive = activeChat?.type === "convo" && activeChat.id === c.id;
+              const isTemp = c.id && c.id.startsWith('temp_');
               return (
                 <div key={c.id}
                      className={"row-item" + (isActive ? " active" : "")}
-                     onClick={() => openConversation(c.id, 'convo')}>
+                     onClick={() => {
+                       if (isTemp) {
+                         setActiveChat({ type: 'convo', id: c.id });
+                         setNewChatPhone('');
+                       } else {
+                         openConversation(c.id, 'convo');
+                       }
+                     }}>
                   <div className="avatar">{initials(otherName)}</div>
                   <div className="row-text">
                     <div className="row-name">
-                      <span>{otherName}</span>
+                      <span>{otherName} {isTemp && <span style={{fontSize:10, color:'var(--amber)'}}>new</span>}</span>
                       <span className="row-time">{last ? fmtTime(last.created_at) : ""}</span>
                     </div>
                     <div className="row-preview">
-                      {last ? (last.sender_phone === getMyPhone() ? "You: " : "") + last.content : "Say hello 👋"}
+                      {last ? (last.sender_phone === getMyPhone() ? "You: " : "") + (last.content || '') : "Say hello 👋"}
                     </div>
                   </div>
                 </div>
@@ -1139,22 +1399,22 @@ function App() {
             myGroups.length === 0 ? (
               <div className="empty-list">No groups yet. Create one to get started.</div>
             ) : myGroups.map(g => {
+              if (!g) return null;
               const msgs = groupMessagesCache[g.id] || [];
               const last = msgs[msgs.length - 1];
               const isActive = activeChat?.type === "group" && activeChat.id === g.id;
-              const isAdmin = g.admin_phone === getMyPhone();
               return (
                 <div key={g.id}
                      className={"row-item" + (isActive ? " active" : "")}
                      onClick={() => openConversation(g.id, 'group')}>
-                  <div className="avatar group">{initials(g.group_name)}</div>
+                  <div className="avatar group">{initials(g.group_name || 'Group')}</div>
                   <div className="row-text">
                     <div className="row-name">
-                      <span>{g.group_name}</span>
+                      <span>{g.group_name || 'Group'}</span>
                       <span className="row-time">{last ? fmtTime(last.created_at) : ""}</span>
                     </div>
                     <div className="row-preview">
-                      {last ? (last.sender_phone === getMyPhone() ? "You: " : (last.sender_name || last.sender_phone) + ": ") + last.content : `${g.participants ? g.participants.length : 0} members`}
+                      {last ? (last.sender_phone === getMyPhone() ? "You: " : (last.sender_name || last.sender_phone) + ": ") + (last.content || '') : `${g.participants ? g.participants.length : 0} members`}
                     </div>
                   </div>
                 </div>
@@ -1169,16 +1429,17 @@ function App() {
           <div className="chat-head">
             <div className="chat-head-left">
               <div className={"avatar" + (activeGroup ? " group" : "")}>
-                {initials(activeGroup ? activeGroup.group_name : getOtherName(activeConvo))}
+                {initials(activeGroup ? (activeGroup.group_name || 'Group') : getOtherName(activeConvo))}
               </div>
               <div>
                 <div className="chat-head-name">
-                  {activeGroup ? activeGroup.group_name : getOtherName(activeConvo)}
+                  {activeGroup ? (activeGroup.group_name || 'Group') : getOtherName(activeConvo)}
+                  {isTempConv && <span style={{fontSize:12, color:'var(--amber)', marginLeft:8}}>new</span>}
                 </div>
                 <div className="chat-head-sub">
                   {activeGroup
                     ? `${activeGroup.participants ? activeGroup.participants.length : 0} members${activeGroup.admin_phone === getMyPhone() ? " · you're admin" : ""}`
-                    : "online"}
+                    : isTempConv ? "Send a message to start the conversation" : "online"}
                 </div>
               </div>
             </div>
@@ -1193,12 +1454,14 @@ function App() {
 
           <div className="messages">
             <div className="system-line">
-              {activeGroup ? `You are in "${activeGroup.group_name}"` : "Start of conversation"}
+              {activeGroup ? `You are in "${activeGroup.group_name || 'Group'}"` : isTempConv ? "Say hello to start the conversation!" : "Start of conversation"}
             </div>
-            {activeMsgs.map(m => {
+            {activeMsgs && activeMsgs.map(m => {
+              if (!m) return null;
               const isMine = m.sender_phone === getMyPhone();
+              const messageId = m.id || m.tempId || 'msg_' + Date.now();
               return (
-                <div key={m.id} className={"bubble-row" + (isMine ? " mine" : "")}>
+                <div key={messageId} className={"bubble-row" + (isMine ? " mine" : "")}>
                   <div className={"bubble" + (isMine ? " mine" : " theirs")}>
                     {activeGroup && !isMine && m.sender_name && (
                       <div className="sender-tag">{m.sender_name}</div>
@@ -1206,8 +1469,10 @@ function App() {
                     {m.content}
                     <div className="meta">
                       <span>{fmtTime(m.created_at)}</span>
-                      {isMine && !activeGroup && m.status && (
-                        <span>{m.status === 'seen' ? '✓✓' : m.status === 'delivered' ? '✓✓' : '✓'}</span>
+                      {isMine && !activeGroup && (
+                        <span className="status-icon" style={{fontSize: '12px'}}>
+                          {m.status === 'seen' ? '✓✓' : m.status === 'delivered' ? '✓✓' : m.status === 'sending' ? '◌' : '✓'}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -1217,19 +1482,24 @@ function App() {
             <div ref={messagesEndRef} />
           </div>
 
-          {typingFrom && (activeConvo?.user1_phone === typingFrom || activeConvo?.user2_phone === typingFrom || activeGroup?.participants?.includes(typingFrom)) && (
+          {typingFrom && (activeConvo?.user1_phone === typingFrom || activeConvo?.user2_phone === typingFrom || (activeGroup && activeGroup.participants && activeGroup.participants.includes(typingFrom))) && (
             <div className="typing-row">{typingFrom} is typing…</div>
           )}
 
           <div className="composer">
             <input
-              placeholder={activeGroup ? "Message the group" : "Type a message"}
+              placeholder={activeGroup ? "Message the group" : isTempConv ? "Type your first message..." : "Type a message"}
               value={draft}
               onChange={e => {
                 setDraft(e.target.value);
                 const ws = wsRef.current;
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                  const target = activeGroup ? activeGroup.id : (activeConvo ? getOtherPhone(activeConvo) : '');
+                if (ws && ws.readyState === WebSocket.OPEN && e.target.value.trim()) {
+                  let target = null;
+                  if (activeGroup) {
+                    target = activeGroup.id;
+                  } else if (activeConvo) {
+                    target = getOtherPhone(activeConvo);
+                  }
                   if (target) {
                     ws.send(JSON.stringify({
                       event: 'typing',
@@ -1244,14 +1514,24 @@ function App() {
               onKeyDown={e => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  activeGroup ? sendGroupMessage(draft) : sendDirectMessage(draft);
+                  if (activeGroup) {
+                    sendGroupMessage(draft);
+                  } else {
+                    sendDirectMessage(draft);
+                  }
                 }
               }}
             />
             <button
               className="send-btn"
               disabled={!draft.trim()}
-              onClick={() => activeGroup ? sendGroupMessage(draft) : sendDirectMessage(draft)}
+              onClick={() => {
+                if (activeGroup) {
+                  sendGroupMessage(draft);
+                } else {
+                  sendDirectMessage(draft);
+                }
+              }}
             >➤</button>
           </div>
         </div>
@@ -1296,7 +1576,7 @@ function App() {
       {showMembers && activeGroup && (
         <div className="overlay" onClick={() => setShowMembers(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>{activeGroup.group_name}</h3>
+            <h3>{activeGroup.group_name || 'Group'}</h3>
             <p className="modal-sub">{activeGroup.participants ? activeGroup.participants.length : 0} members</p>
             <div className="member-list">
               {activeGroup.participants && activeGroup.participants.map(p => (
@@ -1317,7 +1597,7 @@ function App() {
                             sender_phone: getMyPhone()
                           }
                         }));
-                        pushToast('Removing member...');
+                        pushToast(`Removing ${p}...`);
                       }
                     }}>Remove</button>
                   )}
