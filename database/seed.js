@@ -1,4 +1,4 @@
-// drop-and-seed.js
+// drop-and-seed-unified.js
 import pg from 'pg';
 import 'dotenv/config';
 
@@ -18,10 +18,10 @@ async function resetDatabase() {
         // Drop tables in correct order (due to foreign keys)
         console.log('🗑️ Dropping existing tables...');
         await client.query(`DROP TABLE IF EXISTS group_message_read_receipts CASCADE;`);
-        await client.query(`DROP TABLE IF EXISTS group_messages CASCADE;`);
+        await client.query(`DROP TABLE IF EXISTS group_message_delivery CASCADE;`);
+        await client.query(`DROP TABLE IF EXISTS messages CASCADE;`);
         await client.query(`DROP TABLE IF EXISTS group_participants CASCADE;`);
         await client.query(`DROP TABLE IF EXISTS groups CASCADE;`);
-        await client.query(`DROP TABLE IF EXISTS messages CASCADE;`);
         await client.query(`DROP TABLE IF EXISTS conversations CASCADE;`);
         await client.query(`DROP TABLE IF EXISTS users CASCADE;`);
         console.log('✅ Tables dropped\n');
@@ -62,27 +62,7 @@ async function resetDatabase() {
         console.log('✅ Conversations table created\n');
 
         // ============================================================
-        // 3. MESSAGES TABLE (1-on-1)
-        // ============================================================
-        console.log('📝 Creating messages table...');
-        await client.query(`
-            CREATE TABLE messages (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-                sender_phone VARCHAR(15) NOT NULL REFERENCES users(phone_number) ON DELETE CASCADE,
-                receiver_phone VARCHAR(15) NOT NULL REFERENCES users(phone_number) ON DELETE CASCADE,
-                content TEXT NOT NULL,
-                status VARCHAR(20) DEFAULT 'sent',
-                delivered_at TIMESTAMP,
-                seen_at TIMESTAMP,
-                created_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW()
-            );
-        `);
-        console.log('✅ Messages table created\n');
-
-        // ============================================================
-        // 4. GROUPS TABLE
+        // 3. GROUPS TABLE
         // ============================================================
         console.log('📝 Creating groups table...');
         await client.query(`
@@ -97,7 +77,7 @@ async function resetDatabase() {
         console.log('✅ Groups table created\n');
 
         // ============================================================
-        // 5. GROUP PARTICIPANTS TABLE
+        // 4. GROUP PARTICIPANTS TABLE
         // ============================================================
         console.log('📝 Creating group_participants table...');
         await client.query(`
@@ -112,29 +92,69 @@ async function resetDatabase() {
         console.log('✅ Group participants table created\n');
 
         // ============================================================
-        // 6. GROUP MESSAGES TABLE
+        // 5. UNIFIED MESSAGES TABLE (1-on-1 + Groups)
         // ============================================================
-        console.log('📝 Creating group_messages table...');
+        console.log('📝 Creating unified messages table...');
         await client.query(`
-            CREATE TABLE group_messages (
+            CREATE TABLE messages (
+                -- Primary Key
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+                
+                -- Polymorphic References (Exactly ONE must be non-NULL)
+                conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+                group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+                
+                -- Sender
                 sender_phone VARCHAR(15) NOT NULL REFERENCES users(phone_number) ON DELETE CASCADE,
+                
+                -- For 1-on-1 messages only (NULL for group messages)
+                receiver_phone VARCHAR(15) REFERENCES users(phone_number) ON DELETE CASCADE,
+                
+                -- Content
                 content TEXT NOT NULL,
+                
+                -- Delivery Status (for 1-on-1)
+                status VARCHAR(20) DEFAULT 'sent',
+                delivered_at TIMESTAMP,
+                seen_at TIMESTAMP,
+                
+                -- 🔒 PINNING FEATURE
+                is_pinned BOOLEAN DEFAULT FALSE,
+                pinned_at TIMESTAMP,
+                pinned_by VARCHAR(15) REFERENCES users(phone_number) ON DELETE SET NULL,
+                
+                -- 🔒 DELETION/VISIBILITY FEATURE
+                visibility VARCHAR(50) DEFAULT 'all',
+                deleted_by VARCHAR(15) REFERENCES users(phone_number) ON DELETE SET NULL,
+                deleted_at TIMESTAMP,
+                
+                -- Timestamps
                 created_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW()
+                updated_at TIMESTAMP DEFAULT NOW(),
+                
+                -- 🔑 Constraint: Exactly ONE of conversation_id or group_id must be set
+                CONSTRAINT check_message_type CHECK (
+                    (conversation_id IS NOT NULL AND group_id IS NULL) OR
+                    (conversation_id IS NULL AND group_id IS NOT NULL)
+                ),
+                
+                -- 🔑 Constraint: receiver_phone must be NULL for group messages
+                CONSTRAINT check_receiver_phone CHECK (
+                    (group_id IS NOT NULL AND receiver_phone IS NULL) OR
+                    (conversation_id IS NOT NULL)
+                )
             );
         `);
-        console.log('✅ Group messages table created\n');
+        console.log('✅ Unified messages table created\n');
 
         // ============================================================
-        // 7. GROUP MESSAGE DELIVERY TABLE (Per-user tracking)
+        // 6. GROUP MESSAGE DELIVERY TABLE (Per-user tracking for groups)
         // ============================================================
         console.log('📝 Creating group_message_delivery table...');
         await client.query(`
             CREATE TABLE group_message_delivery (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                message_id UUID NOT NULL REFERENCES group_messages(id) ON DELETE CASCADE,
+                message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
                 phone_number VARCHAR(15) NOT NULL REFERENCES users(phone_number) ON DELETE CASCADE,
                 status VARCHAR(20) DEFAULT 'sent',
                 delivered_at TIMESTAMP,
@@ -147,13 +167,13 @@ async function resetDatabase() {
         console.log('✅ Group message delivery table created\n');
 
         // ============================================================
-        // 8. GROUP MESSAGE READ RECEIPTS TABLE
+        // 7. GROUP MESSAGE READ RECEIPTS TABLE
         // ============================================================
         console.log('📝 Creating group_message_read_receipts table...');
         await client.query(`
             CREATE TABLE group_message_read_receipts (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                message_id UUID NOT NULL REFERENCES group_messages(id) ON DELETE CASCADE,
+                message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
                 phone_number VARCHAR(15) NOT NULL REFERENCES users(phone_number) ON DELETE CASCADE,
                 seen_at TIMESTAMP DEFAULT NOW(),
                 UNIQUE(message_id, phone_number)
@@ -162,7 +182,7 @@ async function resetDatabase() {
         console.log('✅ Group message read receipts table created\n');
 
         // ============================================================
-        // 9. INDEXES FOR PERFORMANCE
+        // 8. INDEXES FOR PERFORMANCE
         // ============================================================
         console.log('📝 Creating indexes for performance...');
 
@@ -178,15 +198,42 @@ async function resetDatabase() {
         await client.query(`CREATE INDEX IF NOT EXISTS idx_conversations_last_message ON conversations(last_message_at DESC);`);
         console.log('  ✅ idx_conversations_last_message');
 
-        // Messages
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);`);
+        // Messages - Primary lookup indexes
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id) WHERE conversation_id IS NOT NULL;`);
         console.log('  ✅ idx_messages_conversation');
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_group ON messages(group_id) WHERE group_id IS NOT NULL;`);
+        console.log('  ✅ idx_messages_group');
         await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_phone);`);
         console.log('  ✅ idx_messages_sender');
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_receiver_status ON messages(receiver_phone, status);`);
-        console.log('  ✅ idx_messages_receiver_status');
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_phone);`);
+        console.log('  ✅ idx_messages_receiver');
         await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC);`);
         console.log('  ✅ idx_messages_created');
+
+        // Messages - Pinning indexes
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_messages_pinned_conversation 
+            ON messages(conversation_id, is_pinned DESC) 
+            WHERE conversation_id IS NOT NULL AND is_pinned = true;
+        `);
+        console.log('  ✅ idx_messages_pinned_conversation');
+        
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_messages_pinned_group 
+            ON messages(group_id, is_pinned DESC) 
+            WHERE group_id IS NOT NULL AND is_pinned = true;
+        `);
+        console.log('  ✅ idx_messages_pinned_group');
+
+        // Messages - Visibility indexes
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_visibility ON messages(visibility);`);
+        console.log('  ✅ idx_messages_visibility');
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_pinned_by ON messages(pinned_by);`);
+        console.log('  ✅ idx_messages_pinned_by');
+
+        // Messages - Status indexes
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status);`);
+        console.log('  ✅ idx_messages_status');
 
         // Groups
         await client.query(`CREATE INDEX IF NOT EXISTS idx_groups_admin ON groups(admin_phone);`);
@@ -199,14 +246,6 @@ async function resetDatabase() {
         console.log('  ✅ idx_group_participants_group');
         await client.query(`CREATE INDEX IF NOT EXISTS idx_group_participants_phone ON group_participants(phone_number);`);
         console.log('  ✅ idx_group_participants_phone');
-
-        // Group messages
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_group_messages_group ON group_messages(group_id);`);
-        console.log('  ✅ idx_group_messages_group');
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_group_messages_sender ON group_messages(sender_phone);`);
-        console.log('  ✅ idx_group_messages_sender');
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_group_messages_created ON group_messages(created_at DESC);`);
-        console.log('  ✅ idx_group_messages_created');
 
         // Group message delivery
         await client.query(`CREATE INDEX IF NOT EXISTS idx_group_delivery_message ON group_message_delivery(message_id);`);
@@ -223,7 +262,7 @@ async function resetDatabase() {
         console.log('  ✅ idx_group_read_receipts_phone\n');
 
         // ============================================================
-        // 10. TRIGGERS FOR updated_at
+        // 9. TRIGGERS FOR updated_at
         // ============================================================
         console.log('📝 Creating update triggers...');
 
@@ -238,6 +277,7 @@ async function resetDatabase() {
         `);
         console.log('  ✅ update_updated_at_column function');
 
+        // Users trigger
         await client.query(`
             DROP TRIGGER IF EXISTS update_users_updated_at ON users;
             CREATE TRIGGER update_users_updated_at
@@ -247,6 +287,7 @@ async function resetDatabase() {
         `);
         console.log('  ✅ trigger on users');
 
+        // Conversations trigger
         await client.query(`
             DROP TRIGGER IF EXISTS update_conversations_updated_at ON conversations;
             CREATE TRIGGER update_conversations_updated_at
@@ -256,6 +297,7 @@ async function resetDatabase() {
         `);
         console.log('  ✅ trigger on conversations');
 
+        // Messages trigger
         await client.query(`
             DROP TRIGGER IF EXISTS update_messages_updated_at ON messages;
             CREATE TRIGGER update_messages_updated_at
@@ -265,6 +307,7 @@ async function resetDatabase() {
         `);
         console.log('  ✅ trigger on messages');
 
+        // Groups trigger
         await client.query(`
             DROP TRIGGER IF EXISTS update_groups_updated_at ON groups;
             CREATE TRIGGER update_groups_updated_at
@@ -274,15 +317,7 @@ async function resetDatabase() {
         `);
         console.log('  ✅ trigger on groups');
 
-        await client.query(`
-            DROP TRIGGER IF EXISTS update_group_messages_updated_at ON group_messages;
-            CREATE TRIGGER update_group_messages_updated_at
-            BEFORE UPDATE ON group_messages
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
-        `);
-        console.log('  ✅ trigger on group_messages');
-
+        // Group message delivery trigger
         await client.query(`
             DROP TRIGGER IF EXISTS update_group_message_delivery_updated_at ON group_message_delivery;
             CREATE TRIGGER update_group_message_delivery_updated_at
@@ -293,7 +328,7 @@ async function resetDatabase() {
         console.log('  ✅ trigger on group_message_delivery\n');
 
         // ============================================================
-        // 11. INSERT TEST USERS
+        // 10. INSERT TEST USERS
         // ============================================================
         console.log('📝 Inserting test users...');
 
@@ -306,6 +341,24 @@ async function resetDatabase() {
             ON CONFLICT (phone_number) DO NOTHING;
         `);
         console.log('  ✅ Test users inserted (Alice, Bob, Charlie)\n');
+
+        // ============================================================
+        // 11. ADD COLUMN COMMENTS
+        // ============================================================
+        console.log('📝 Adding column comments...');
+
+        await client.query(`
+            COMMENT ON COLUMN messages.conversation_id IS 'For 1-on-1 messages (NULL for group messages)';
+            COMMENT ON COLUMN messages.group_id IS 'For group messages (NULL for 1-on-1 messages)';
+            COMMENT ON COLUMN messages.receiver_phone IS 'For 1-on-1 messages only (NULL for group messages)';
+            COMMENT ON COLUMN messages.is_pinned IS 'Whether the message is pinned';
+            COMMENT ON COLUMN messages.pinned_at IS 'When the message was pinned';
+            COMMENT ON COLUMN messages.pinned_by IS 'Who pinned the message';
+            COMMENT ON COLUMN messages.visibility IS 'Visibility: all, none, all_except_sender, all_except_user:phone';
+            COMMENT ON COLUMN messages.deleted_by IS 'Who deleted the message';
+            COMMENT ON COLUMN messages.deleted_at IS 'When the message was deleted';
+        `);
+        console.log('  ✅ Comments added to messages table\n');
 
         // ============================================================
         // 12. VERIFY SETUP
@@ -328,7 +381,11 @@ async function resetDatabase() {
         console.log(`\n  👥 Users in database: ${userCount.rows[0].count}`);
 
         console.log('\n🎉 Database setup complete!');
-        console.log('📋 Tables: users, conversations, messages, groups, group_participants, group_messages, group_message_delivery, group_message_read_receipts');
+        console.log('📋 Tables: users, conversations, groups, group_participants, messages, group_message_delivery, group_message_read_receipts');
+        console.log('\n📋 Unified messages table supports both 1-on-1 and group messages!');
+        console.log('   🔹 conversation_id → 1-on-1 messages');
+        console.log('   🔹 group_id → Group messages');
+        console.log('   🔹 Exactly ONE of the above must be set');
 
     } catch (error) {
         console.error('❌ Error:', error.message);

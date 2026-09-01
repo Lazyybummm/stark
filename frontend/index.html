@@ -1,1715 +1,1152 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Wire — messaging prototype</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relay — backend console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#181A20;
-    --paper:#EEF0F3;
-    --panel:#FFFFFF;
-    --line:#D9DCE2;
-    --cobalt:#2C5FE8;
-    --cobalt-dim:#E4EBFC;
-    --sage:#3F8360;
-    --amber:#B4750E;
-    --muted:#71767E;
-    --danger:#C43D3D;
-    --radius:10px;
+    --bg:#10161A;
+    --panel:#171F24;
+    --panel-2:#1D262C;
+    --panel-3:#232E35;
+    --border:#2A363D;
+    --border-soft:#212B31;
+    --text:#E7EDEF;
+    --text-dim:#93A3AB;
+    --text-faint:#5C6E77;
+    --accent:#E2A23B;
+    --accent-ink:#1A1300;
+    --good:#5FAE84;
+    --danger:#D9614F;
+    --pending:#7A8890;
+    --radius-s:4px;
+    --radius-m:8px;
+    --mono:'IBM Plex Mono', ui-monospace, monospace;
+    --sans:'Inter', -apple-system, sans-serif;
+    --serif:'Fraunces', serif;
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
   body{
-    margin:0;
-    background:var(--paper);
-    color:var(--ink);
-    font-family:'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans); font-size:14px; line-height:1.5;
     -webkit-font-smoothing:antialiased;
   }
-  .display{
-    font-family:'Georgia', 'Iowan Old Style', serif;
-    letter-spacing:-0.01em;
-  }
-  #app{
-    height:100vh;
-    display:flex;
-    align-items:stretch;
-    justify-content:center;
-  }
+  ::selection{background:var(--accent); color:var(--accent-ink);}
+  button{font-family:inherit; font-size:inherit; cursor:pointer;}
+  input, textarea, select{font-family:inherit; font-size:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-s); padding:8px 10px; outline:none;}
+  input:focus, textarea:focus, select:focus{border-color:var(--accent);}
+  input::placeholder, textarea::placeholder{color:var(--text-faint);}
+  a{color:var(--accent);}
+  .mono{font-family:var(--mono);}
+  .hidden{display:none !important;}
 
-  /* ---------- AUTH SCREEN ---------- */
-  .auth-wrap{
-    width:100%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
+  /* ---------- shell ---------- */
+  .shell{ display:flex; flex-direction:column; height:100vh; }
+
+  .topbar{
+    display:flex; align-items:center; gap:16px;
+    padding:10px 18px; border-bottom:1px solid var(--border);
+    background:var(--panel); flex-shrink:0;
   }
-  .auth-card{
-    width:380px;
-    max-width:92vw;
-    padding:40px 34px;
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:14px;
-  }
-  .auth-word{
-    font-size:34px;
-    font-weight:400;
-    margin:0 0 4px 0;
-  }
-  .auth-sub{
-    color:var(--muted);
-    font-size:14px;
-    margin:0 0 28px 0;
-    line-height:1.5;
-  }
-  .field{
-    margin-bottom:14px;
-  }
-  .field label{
-    display:block;
-    font-size:12px;
-    color:var(--muted);
-    margin-bottom:6px;
-  }
-  .field input{
-    width:100%;
-    padding:11px 12px;
-    border:1px solid var(--line);
-    border-radius:8px;
-    font-size:14px;
-    background:#FAFBFC;
-    color:var(--ink);
-  }
-  .field input:focus{
-    outline:none;
-    border-color:var(--cobalt);
-    background:#fff;
-  }
+  .brand{ display:flex; align-items:baseline; gap:8px; }
+  .brand-mark{ font-family:var(--serif); font-size:20px; font-weight:600; letter-spacing:-0.01em; }
+  .brand-sub{ color:var(--text-faint); font-size:12px; }
+  .topbar-spacer{ flex:1; }
+  .conn{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--text-dim); }
+  .conn-dot{ width:7px; height:7px; border-radius:50%; background:var(--text-faint); flex-shrink:0; }
+  .conn-dot.up{ background:var(--good); box-shadow:0 0 0 3px rgba(95,174,132,0.18); }
+  .conn-dot.down{ background:var(--danger); }
+  .who{ font-size:12.5px; color:var(--text-dim); }
+  .who b{ color:var(--text); font-weight:600; }
   .btn{
-    width:100%;
-    padding:12px;
-    border-radius:8px;
-    border:none;
-    background:var(--ink);
-    color:#fff;
-    font-size:14px;
-    font-weight:600;
-    cursor:pointer;
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    padding:7px 13px; border-radius:var(--radius-s); font-weight:500; font-size:13px;
+    transition:border-color .12s ease;
   }
-  .btn:hover{ background:#000; }
-  .btn.secondary{
-    background:transparent;
-    color:var(--cobalt);
-    border:1px solid var(--line);
-  }
-  .btn.secondary:hover{ background:var(--cobalt-dim); }
-  .switch-line{
-    text-align:center;
-    margin-top:18px;
-    font-size:13px;
-    color:var(--muted);
-  }
-  .switch-line a{
-    color:var(--cobalt);
-    cursor:pointer;
-    text-decoration:none;
-  }
-  .auth-error{
-    background:#FBEAEA;
-    color:var(--danger);
-    border-radius:8px;
-    padding:9px 11px;
-    font-size:12.5px;
-    margin-bottom:14px;
-  }
+  .btn:hover{ border-color:var(--text-faint); }
+  .btn.primary{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; }
+  .btn.primary:hover{ filter:brightness(1.06); }
+  .btn.danger{ color:var(--danger); }
+  .btn.ghost{ background:transparent; border-color:transparent; color:var(--text-dim); padding:6px 10px; }
+  .btn.ghost:hover{ color:var(--text); background:var(--panel-2); }
+  .btn.small{ padding:5px 10px; font-size:12px; }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; }
 
-  /* ---------- MAIN SHELL ---------- */
-  .shell{
-    width:100%;
-    height:100%;
-    display:flex;
-  }
+  .body{ flex:1; display:flex; min-height:0; }
+
+  /* ---------- sidebar ---------- */
   .sidebar{
-    width:320px;
-    min-width:320px;
-    background:var(--panel);
-    border-right:1px solid var(--line);
-    display:flex;
-    flex-direction:column;
+    width:290px; flex-shrink:0; border-right:1px solid var(--border);
+    background:var(--panel); display:flex; flex-direction:column; min-height:0;
   }
-  .side-head{
-    padding:18px 18px 12px 18px;
-    border-bottom:1px solid var(--line);
-  }
-  .side-head-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    margin-bottom:12px;
-  }
-  .brand{
-    font-size:20px;
-    display:flex;
-    align-items:center;
-    gap:9px;
-  }
-  .brand .dot{
-    width:9px;height:9px;border-radius:50%;
-    background:var(--sage);
-    display:inline-block;
-  }
-  .me{
-    font-size:12px;
-    color:var(--muted);
-  }
-  .logout{
-    font-size:12px;
-    color:var(--muted);
-    background:none;
-    border:none;
-    cursor:pointer;
-    text-decoration:underline;
-    padding:0;
-  }
-  .tabs{
-    display:flex;
-    gap:4px;
-    background:#F1F2F5;
-    padding:3px;
-    border-radius:8px;
-  }
+  .sidebar-section{ padding:14px 14px 0 14px; }
+  .field-label{ font-size:11.5px; color:var(--text-faint); margin-bottom:5px; display:block; }
+  .field{ margin-bottom:10px; }
+  .field input{ width:100%; }
+  .row{ display:flex; gap:8px; }
+  .row > *{ flex:1; }
+
+  .tabs{ display:flex; gap:2px; padding:12px 14px 0 14px; }
   .tab{
-    flex:1;
-    text-align:center;
-    padding:7px 0;
-    font-size:12.5px;
-    border-radius:6px;
-    cursor:pointer;
-    color:var(--muted);
-    font-weight:600;
+    flex:1; text-align:center; padding:8px 4px; font-size:12.5px; color:var(--text-dim);
+    background:transparent; border:1px solid var(--border); border-bottom:none;
+    border-radius:var(--radius-s) var(--radius-s) 0 0;
   }
-  .tab.active{
-    background:#fff;
-    color:var(--ink);
-    box-shadow:0 1px 2px rgba(0,0,0,0.08);
+  .tab.active{ color:var(--text); background:var(--panel-2); }
+
+  .list{ flex:1; overflow-y:auto; border-top:1px solid var(--border); }
+  .list-empty{ padding:22px 16px; color:var(--text-faint); font-size:12.5px; line-height:1.6; }
+  .item{
+    display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer;
+    border-bottom:1px solid var(--border-soft);
   }
-  .new-row{
-    padding:10px 18px;
-    border-bottom:1px solid var(--line);
-    display:flex;
-    gap:8px;
-  }
-  .new-row input{
-    flex:1;
-    padding:8px 10px;
-    border-radius:7px;
-    border:1px solid var(--line);
-    font-size:13px;
-    background:#FAFBFC;
-  }
-  .new-row button{
-    padding:8px 12px;
-    border-radius:7px;
-    border:none;
-    background:var(--cobalt);
-    color:#fff;
-    font-size:12.5px;
-    font-weight:600;
-    cursor:pointer;
-    white-space:nowrap;
-  }
-  .list{
-    flex:1;
-    overflow-y:auto;
-  }
-  .row-item{
-    padding:12px 18px;
-    display:flex;
-    gap:11px;
-    align-items:center;
-    cursor:pointer;
-    border-bottom:1px solid #F0F1F4;
-  }
-  .row-item:hover{ background:#F7F8FA; }
-  .row-item.active{ background:var(--cobalt-dim); }
+  .item:hover{ background:var(--panel-2); }
+  .item.active{ background:var(--panel-3); box-shadow:inset 2px 0 0 var(--accent); }
   .avatar{
-    width:40px;height:40px;border-radius:50%;
-    background:var(--ink);
-    color:#fff;
-    display:flex;align-items:center;justify-content:center;
-    font-size:14px;
-    font-weight:600;
-    flex-shrink:0;
-  }
-  .avatar.group{ background:var(--amber); }
-  .row-text{ flex:1; min-width:0; }
-  .row-name{
-    font-size:14px;
-    font-weight:600;
-    display:flex;
-    justify-content:space-between;
-    gap:6px;
-  }
-  .row-time{ font-weight:400; color:var(--muted); font-size:11px; }
-  .row-preview{
-    font-size:12.5px;
-    color:var(--muted);
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    margin-top:2px;
-  }
-  .empty-list{
-    padding:30px 18px;
-    color:var(--muted);
-    font-size:13px;
-    line-height:1.6;
-  }
-
-  /* ---------- CHAT PANE ---------- */
-  .chat-pane{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    min-width:0;
-  }
-  .chat-head{
-    padding:14px 22px;
-    border-bottom:1px solid var(--line);
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    background:var(--panel);
-  }
-  .chat-head-left{ display:flex; align-items:center; gap:11px; }
-  .chat-head-name{ font-size:15px; font-weight:600; }
-  .chat-head-sub{ font-size:12px; color:var(--muted); margin-top:1px; }
-  .head-actions{ display:flex; gap:8px; }
-  .icon-btn{
-    border:1px solid var(--line);
-    background:#fff;
-    border-radius:7px;
-    padding:6px 11px;
-    font-size:12px;
-    cursor:pointer;
-    color:var(--ink);
-  }
-  .icon-btn:hover{ background:#F7F8FA; }
-  .icon-btn.danger{ color:var(--danger); border-color:#F1D3D3; }
-
-  .messages{
-    flex:1;
-    overflow-y:auto;
-    padding:20px 26px;
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    background:
-      radial-gradient(circle at 1px 1px, #E3E5EA 1px, transparent 0) 0 0/22px 22px,
-      var(--paper);
-  }
-  .bubble-row{ display:flex; }
-  .bubble-row.mine{ justify-content:flex-end; }
-  .bubble{
-    max-width:62%;
-    padding:9px 13px;
-    border-radius:14px;
-    font-size:14px;
-    line-height:1.45;
-    position:relative;
-  }
-  .bubble .sender-tag{
-    font-size:11px;
-    font-weight:700;
-    margin-bottom:2px;
-    color:var(--amber);
-  }
-  .bubble.theirs{
-    background:#fff;
-    border:1px solid var(--line);
-    border-bottom-left-radius:4px;
-  }
-  .bubble.mine{
-    background:var(--cobalt);
-    color:#fff;
-    border-bottom-right-radius:4px;
-  }
-  .meta{
-    font-size:10.5px;
-    margin-top:4px;
-    display:flex;
-    gap:4px;
-    align-items:center;
-    opacity:0.75;
-  }
-  .bubble.mine .meta{ justify-content:flex-end; }
-  .system-line{
-    text-align:center;
-    font-size:11.5px;
-    color:var(--muted);
-    margin:6px 0;
-  }
-  .typing-row{
-    font-size:12.5px;
-    color:var(--muted);
-    padding:0 26px 8px 26px;
-    font-style:italic;
-  }
-  .composer{
-    display:flex;
-    gap:10px;
-    padding:14px 22px;
-    border-top:1px solid var(--line);
-    background:var(--panel);
-  }
-  .composer input{
-    flex:1;
-    padding:11px 14px;
-    border-radius:20px;
-    border:1px solid var(--line);
-    font-size:14px;
-    background:#F7F8FA;
-  }
-  .composer input:focus{ outline:none; border-color:var(--cobalt); background:#fff; }
-  .send-btn{
-    border:none;
-    background:var(--ink);
-    color:#fff;
-    width:42px;height:42px;
-    border-radius:50%;
-    cursor:pointer;
-    font-size:16px;
-  }
-  .send-btn:disabled{ background:#C7CAD1; cursor:default; }
-
-  .placeholder-pane{
-    flex:1;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-direction:column;
-    color:var(--muted);
-    gap:10px;
-    text-align:center;
-    padding:0 30px;
-  }
-  .placeholder-pane .display{ font-size:22px; color:var(--ink); }
-
-  /* ---------- MODAL ---------- */
-  .overlay{
-    position:fixed; inset:0;
-    background:rgba(20,22,26,0.4);
+    width:32px; height:32px; border-radius:50%; flex-shrink:0;
+    background:var(--panel-3); border:1px solid var(--border);
     display:flex; align-items:center; justify-content:center;
-    z-index:30;
+    font-size:12px; font-weight:600; color:var(--text-dim);
   }
-  .modal{
-    width:360px;
-    max-width:90vw;
-    background:#fff;
-    border-radius:12px;
-    padding:24px;
+  .item-main{ min-width:0; flex:1; }
+  .item-title{ font-size:13.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .item-sub{ font-size:11.5px; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:var(--mono); }
+  .item-badge{ width:7px; height:7px; border-radius:50%; background:var(--good); flex-shrink:0; }
+
+  .newchat-form{ display:flex; gap:6px; padding:10px 14px; border-top:1px solid var(--border); }
+  .newchat-form input{ flex:1; }
+
+  .identity{ padding:12px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .identity .item-title{ font-size:14px; }
+
+  /* ---------- chat pane ---------- */
+  .chat{ flex:1; display:flex; flex-direction:column; min-width:0; background:var(--bg); }
+  .chat-empty{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:var(--text-faint); gap:6px; text-align:center; padding:40px;
   }
-  .modal h3{ margin:0 0 4px 0; font-size:17px; }
-  .modal .modal-sub{ font-size:12.5px; color:var(--muted); margin-bottom:16px; }
-  .modal-row{ margin-bottom:12px; }
-  .modal-actions{ display:flex; gap:10px; margin-top:18px; }
-  .member-list{ max-height:180px; overflow-y:auto; margin:10px 0; }
-  .member-row{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:7px 0; font-size:13px; border-bottom:1px solid #F1F2F5;
+  .chat-empty .em-title{ font-family:var(--serif); font-size:19px; color:var(--text-dim); }
+  .chat-empty .em-sub{ font-size:13px; max-width:360px; }
+
+  .chat-header{
+    display:flex; align-items:center; gap:12px; padding:12px 18px;
+    border-bottom:1px solid var(--border); background:var(--panel); flex-shrink:0;
   }
-  .member-row .tag{
-    font-size:10.5px; color:var(--amber); font-weight:700; margin-left:6px;
+  .chat-header .item-title{ font-size:14.5px; }
+  .chat-header .item-sub{ font-size:12px; }
+  .chat-header-spacer{ flex:1; }
+
+  .pin-bar{
+    display:flex; align-items:center; gap:10px; padding:8px 18px;
+    background:rgba(226,162,59,0.08); border-bottom:1px solid var(--border);
+    font-size:12.5px; color:var(--text-dim); flex-shrink:0;
   }
-  .member-row button{
-    border:none; background:none; color:var(--danger);
-    cursor:pointer; font-size:12px;
+  .pin-bar b{ color:var(--accent); font-weight:600; }
+  .pin-bar .pin-text{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .messages{ flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:3px; }
+  .msg-day{ text-align:center; color:var(--text-faint); font-size:11px; margin:14px 0 8px; }
+  .bubble-row{ display:flex; margin-bottom:2px; }
+  .bubble-row.me{ justify-content:flex-end; }
+  .bubble{
+    max-width:62%; padding:8px 12px; border-radius:12px; position:relative;
+    background:var(--panel-2); border:1px solid var(--border);
   }
-  .toast-stack{
-    position:fixed;
-    bottom:20px; right:20px;
-    display:flex; flex-direction:column; gap:8px;
-    z-index:50;
+  .bubble-row.me .bubble{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); border-bottom-right-radius:3px; }
+  .bubble-row:not(.me) .bubble{ border-bottom-left-radius:3px; }
+  .bubble-sender{ font-size:11px; color:var(--accent); font-weight:600; margin-bottom:2px; }
+  .bubble-row.me .bubble-sender{ display:none; }
+  .bubble-text{ font-size:13.5px; white-space:pre-wrap; word-break:break-word; }
+  .bubble-meta{ display:flex; align-items:center; gap:5px; margin-top:3px; font-size:10.5px; color:var(--text-faint); }
+  .bubble-row.me .bubble-meta{ color:rgba(26,19,0,0.6); }
+  .bubble.pending{ opacity:.65; }
+  .bubble.pinned{ box-shadow:0 0 0 1px var(--accent); }
+  .tick{ font-family:var(--mono); }
+  .tick.seen{ color:var(--good); }
+  .bubble-row.me .tick.seen{ color:#1A1300; font-weight:700; }
+  .bubble-actions{ display:flex; gap:4px; margin-top:4px; }
+  .bubble-actions button{
+    font-size:10px; background:transparent; border:none; color:var(--text-faint);
+    text-decoration:underline; padding:0;
   }
+  .bubble-row.me .bubble-actions button{ color:rgba(26,19,0,0.55); }
+
+  .typing-line{ padding:0 18px 6px; font-size:12px; color:var(--text-faint); font-style:italic; min-height:18px; flex-shrink:0; }
+
+  .composer{ display:flex; gap:8px; align-items:flex-end; padding:12px 18px; border-top:1px solid var(--border); background:var(--panel); flex-shrink:0; }
+  .composer textarea{ flex:1; resize:none; height:38px; max-height:120px; padding-top:9px; }
+  .composer .btn.primary{ height:38px; }
+
+  /* ---------- group settings drawer (inline panel) ---------- */
+  .group-panel{ border-bottom:1px solid var(--border); background:var(--panel); overflow:hidden; flex-shrink:0; }
+  .group-panel-inner{ padding:14px 18px; display:flex; flex-wrap:wrap; gap:22px; }
+  .gp-block{ min-width:220px; }
+  .gp-block h4{ margin:0 0 8px; font-size:11.5px; text-transform:none; letter-spacing:0; color:var(--text-faint); font-weight:600; }
+  .chip-list{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .chip{
+    display:flex; align-items:center; gap:6px; background:var(--panel-3); border:1px solid var(--border);
+    padding:4px 6px 4px 10px; border-radius:20px; font-size:12px; font-family:var(--mono);
+  }
+  .chip.admin{ border-color:var(--accent); color:var(--accent); }
+  .chip button{ background:transparent; border:none; color:var(--text-faint); font-size:14px; line-height:1; padding:0 2px; }
+  .chip button:hover{ color:var(--danger); }
+  .gp-form{ display:flex; gap:6px; }
+  .gp-form input, .gp-form select{ flex:1; }
+
+  /* ---------- console ---------- */
+  .console{ width:380px; flex-shrink:0; border-left:1px solid var(--border); background:var(--panel); display:flex; flex-direction:column; min-height:0; }
+  .console-tabs{ display:flex; border-bottom:1px solid var(--border); }
+  .console-tab{ flex:1; padding:10px; text-align:center; font-size:12.5px; color:var(--text-dim); background:transparent; border:none; border-bottom:2px solid transparent; }
+  .console-tab.active{ color:var(--text); border-bottom-color:var(--accent); }
+  .log-list{ flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:6px; }
+  .log-empty{ padding:22px 16px; color:var(--text-faint); font-size:12.5px; }
+  .log-entry{ border:1px solid var(--border-soft); border-radius:var(--radius-s); background:var(--panel-2); overflow:hidden; }
+  .log-head{ display:flex; align-items:center; gap:8px; padding:7px 9px; cursor:pointer; }
+  .log-dir{ font-size:9.5px; font-weight:700; padding:2px 5px; border-radius:3px; letter-spacing:.03em; flex-shrink:0; }
+  .log-dir.out{ background:rgba(226,162,59,0.16); color:var(--accent); }
+  .log-dir.in{ background:rgba(95,174,132,0.16); color:var(--good); }
+  .log-dir.http{ background:rgba(147,163,171,0.16); color:var(--text-dim); }
+  .log-dir.err{ background:rgba(217,97,79,0.16); color:var(--danger); }
+  .log-label{ flex:1; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .log-time{ font-size:10px; color:var(--text-faint); font-family:var(--mono); flex-shrink:0; }
+  .log-body{ padding:0 9px 9px; }
+  .log-body pre{ margin:0; font-family:var(--mono); font-size:11px; color:var(--text-dim); white-space:pre-wrap; word-break:break-word; background:var(--panel); border:1px solid var(--border-soft); border-radius:3px; padding:8px; max-height:220px; overflow:auto; }
+
+  .raw-send{ padding:14px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; }
+  .raw-send textarea{ width:100%; height:160px; font-family:var(--mono); font-size:12px; }
+  .raw-send select{ width:100%; }
+  .hint{ font-size:11.5px; color:var(--text-faint); line-height:1.5; }
+
+  /* ---------- auth screen ---------- */
+  .auth-wrap{ flex:1; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .auth-card{ width:100%; max-width:380px; }
+  .auth-title{ font-family:var(--serif); font-size:26px; font-weight:600; margin:0 0 4px; }
+  .auth-sub{ color:var(--text-dim); font-size:13px; margin:0 0 22px; }
+  .auth-tabs{ display:flex; gap:2px; margin-bottom:16px; }
+  .auth-tab{ flex:1; padding:9px; text-align:center; border:1px solid var(--border); background:var(--panel); color:var(--text-dim); font-size:13px; border-radius:var(--radius-s); }
+  .auth-tab.active{ background:var(--panel-2); color:var(--text); border-color:var(--text-faint); }
+  .auth-error{ background:rgba(217,97,79,0.1); border:1px solid rgba(217,97,79,0.35); color:var(--danger); padding:9px 11px; border-radius:var(--radius-s); font-size:12.5px; margin-bottom:12px; }
+  .config-toggle{ margin-top:16px; font-size:12px; color:var(--text-faint); text-align:center; }
+  .config-toggle button{ background:none; border:none; color:var(--text-faint); text-decoration:underline; }
+  .config-box{ margin-top:12px; padding:12px; border:1px solid var(--border); border-radius:var(--radius-m); background:var(--panel); }
+
+  /* toasts */
+  .toasts{ position:fixed; bottom:18px; right:18px; display:flex; flex-direction:column; gap:8px; z-index:50; }
   .toast{
-    background:var(--ink);
-    color:#fff;
-    padding:10px 15px;
-    border-radius:8px;
-    font-size:12.5px;
-    max-width:280px;
-    box-shadow:0 4px 14px rgba(0,0,0,0.18);
+    background:var(--panel-3); border:1px solid var(--border); border-left:3px solid var(--good);
+    padding:10px 14px; border-radius:var(--radius-s); font-size:12.5px; max-width:320px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.35); animation:in .15s ease;
   }
-  ::-webkit-scrollbar{ width:8px; }
-  ::-webkit-scrollbar-thumb{ background:#D3D6DC; border-radius:8px; }
+  .toast.err{ border-left-color:var(--danger); }
+  .toast.info{ border-left-color:var(--text-faint); }
+  @keyframes in{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
+
+  ::-webkit-scrollbar{ width:9px; height:9px; }
+  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:5px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.001s !important; transition-duration:.001s !important; } }
+
+  @media (max-width: 900px){
+    .console{ position:fixed; right:0; top:0; bottom:0; z-index:40; box-shadow:-8px 0 24px rgba(0,0,0,0.4); }
+    .sidebar{ position:fixed; left:0; top:53px; bottom:0; z-index:40; box-shadow:8px 0 24px rgba(0,0,0,0.4); }
+  }
 </style>
 </head>
 <body>
-<div id="app"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-<script type="text/babel">
+<div class="shell" id="app"></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
 /* =========================================================================
-   WIRE — React frontend that talks to your real backend via HTTP + WebSocket
+   RELAY — test console for the messages/groups HTTP + WebSocket backend.
+   Single-file, no build step. State lives in memory only (no storage APIs).
    ========================================================================= */
 
-const { useState, useEffect, useRef, useMemo, useCallback } = React;
+/* ---------------------------- state ---------------------------- */
+const state = {
+  httpBase: 'http://localhost:8000',
+  wsUrl: 'ws://localhost:8080',
+  configOpen: false,
+  authTab: 'login',       // 'login' | 'signup'
+  authError: '',
+  token: null, me: { phone:null, name:null, user_id:null },
 
-// ============================================================
-// API & WS CONFIGURATION
-// ============================================================
-const API_BASE = 'http://localhost:8000';
-const WS_URL = 'ws://localhost:8080';
+  ws: null, wsStatus: 'down',      // down | connecting | up
 
-// ============================================================
-// HELPERS
-// ============================================================
-function fmtTime(ts) {
-  if (!ts) return '';
-  const d = new Date(ts);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-function initials(name) {
-  if (!name) return '?';
-  return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-}
-function getToken() {
-  return localStorage.getItem('token');
-}
-function getMyPhone() {
-  return localStorage.getItem('myPhone');
-}
-function getMyName() {
-  return localStorage.getItem('myName');
+  conversations: [],       // from /myconversation: {id,user1_phone,user2_phone,last_message_at}
+  dmMessagesByPhone: {},   // peerPhone -> [messages]
+  dmMeta: {},              // peerPhone -> { conversationId, name? }
+
+  groups: {},              // groupId -> {id, group_name, admin_phone, participants:Set, messages:[]}
+
+  activeChat: null,        // {type:'dm', phone} | {type:'group', id}
+  sidebarTab: 'chats',     // 'chats' | 'groups'
+  typingFrom: {},          // key(peer) -> timeout handle, for showing "typing..."
+  groupSettingsOpen: false,
+
+  consoleOpen: true,
+  consoleTab: 'log',       // 'log' | 'raw'
+  log: [],
+
+  pendingSeq: 1,
+};
+
+function newTempId(prefix){ return prefix + '_' + (state.pendingSeq++) + '_' + Math.random().toString(36).slice(2,7); }
+
+/* ---------------------------- render root ---------------------------- */
+function render(){
+  const app = document.getElementById('app');
+  if(!state.token){
+    app.innerHTML = renderAuthScreen();
+    bindAuthScreen();
+    return;
+  }
+  app.innerHTML = `
+    ${renderTopbar()}
+    <div class="body">
+      ${renderSidebar()}
+      ${renderChatPane()}
+      ${state.consoleOpen ? renderConsole() : ''}
+    </div>
+  `;
+  bindTopbar(); bindSidebar(); bindChatPane(); if(state.consoleOpen) bindConsole();
 }
 
-// ============================================================
-// API FUNCTIONS
-// ============================================================
-async function apiCall(endpoint, method = 'POST', body = null, withToken = true) {
+/* ============================== AUTH ============================== */
+function renderAuthScreen(){
+  return `
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark">Relay</span><span class="brand-sub">backend console</span></div>
+    <div class="topbar-spacer"></div>
+    <div class="conn"><span class="conn-dot ${state.wsStatus==='up'?'up':(state.wsStatus==='connecting'?'':'down')}"></span>${escapeHtml(state.httpBase)}</div>
+  </div>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1 class="auth-title">Sign in to Relay</h1>
+      <p class="auth-sub">Talks directly to your Express + WebSocket backend. Nothing here is stored beyond this browser tab.</p>
+      <div class="auth-tabs">
+        <button class="auth-tab ${state.authTab==='login'?'active':''}" data-tab="login">Log in</button>
+        <button class="auth-tab ${state.authTab==='signup'?'active':''}" data-tab="signup">Sign up</button>
+      </div>
+      ${state.authError ? `<div class="auth-error">${escapeHtml(state.authError)}</div>` : ''}
+      ${state.authTab==='login' ? `
+        <form id="loginForm">
+          <div class="field"><span class="field-label">Phone number</span><input class="mono" name="phone" placeholder="+91 98xxxxxx" required></div>
+          <div class="field"><span class="field-label">Password</span><input type="password" name="password" placeholder="••••••••" required></div>
+          <button class="btn primary" style="width:100%" type="submit">Log in</button>
+        </form>
+      ` : `
+        <form id="signupForm">
+          <div class="field"><span class="field-label">Name</span><input name="name" placeholder="Ada Lovelace" required></div>
+          <div class="field"><span class="field-label">Phone number</span><input class="mono" name="phone" placeholder="+91 98xxxxxx" required></div>
+          <div class="field"><span class="field-label">Password</span><input type="password" name="password" placeholder="••••••••" required></div>
+          <button class="btn primary" style="width:100%" type="submit">Create account</button>
+        </form>
+      `}
+      <div class="config-toggle"><button id="toggleConfig">${state.configOpen?'Hide':'Server settings'}</button></div>
+      ${state.configOpen ? `
+        <div class="config-box">
+          <div class="field"><span class="field-label">HTTP base URL</span><input class="mono" id="cfgHttp" value="${escapeHtml(state.httpBase)}"></div>
+          <div class="field" style="margin-bottom:0"><span class="field-label">WebSocket URL</span><input class="mono" id="cfgWs" value="${escapeHtml(state.wsUrl)}"></div>
+        </div>
+      ` : ''}
+    </div>
+  </div>`;
+}
+
+function bindAuthScreen(){
+  document.querySelectorAll('.auth-tab').forEach(t=>t.addEventListener('click', ()=>{ state.authTab = t.dataset.tab; state.authError=''; render(); }));
+  const tc = document.getElementById('toggleConfig');
+  if(tc) tc.addEventListener('click', ()=>{ state.configOpen = !state.configOpen; render(); });
+  const ch = document.getElementById('cfgHttp'); if(ch) ch.addEventListener('change', e=> state.httpBase = e.target.value.trim());
+  const cw = document.getElementById('cfgWs'); if(cw) cw.addEventListener('change', e=> state.wsUrl = e.target.value.trim());
+
+  const lf = document.getElementById('loginForm');
+  if(lf) lf.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(lf);
+    await doLogin(fd.get('phone').trim(), fd.get('password'));
+  });
+  const sf = document.getElementById('signupForm');
+  if(sf) sf.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(sf);
+    await doSignup(fd.get('name').trim(), fd.get('phone').trim(), fd.get('password'));
+  });
+}
+
+async function doSignup(name, phone, password){
+  state.authError='';
+  const {ok, data, raw} = await httpCall('POST', '/signup', {name, phone, password});
+  if(ok){
+    toast('Account created — log in to continue.', 'good');
+    state.authTab = 'login';
+    render();
+  } else {
+    state.authError = extractErrorText(data, raw) || 'Signup failed.';
+    render();
+  }
+}
+
+async function doLogin(phone, password){
+  state.authError='';
+  const {ok, data, raw} = await httpCall('POST', '/login', {phone, password});
+  if(ok && data && data.token){
+    state.token = data.token;
+    const claims = decodeJwt(data.token);
+    state.me = { phone: claims.phone || phone, name: claims.name || null, user_id: claims.user_id || null };
+    toast('Logged in as ' + (state.me.name || state.me.phone), 'good');
+    connectWs();
+    await loadConversations();
+    render();
+  } else {
+    state.authError = extractErrorText(data, raw) || 'Login failed — check phone and password.';
+    render();
+  }
+}
+
+function extractErrorText(data, raw){
+  if(data && typeof data === 'object'){
+    if(typeof data.message === 'string' && data.message.toLowerCase() !== 'error occured') return data.message;
+    if(data.error) return typeof data.error === 'string' ? data.error : (data.error.message || JSON.stringify(data.error));
+  }
+  if(typeof raw === 'string' && raw) return raw;
+  return '';
+}
+
+function logout(){
+  if(state.ws){ try{ state.ws.close(); }catch(e){} }
+  Object.assign(state, {
+    token:null, me:{phone:null,name:null,user_id:null}, ws:null, wsStatus:'down',
+    conversations:[], dmMessagesByPhone:{}, dmMeta:{}, groups:{}, activeChat:null,
+  });
+  render();
+}
+
+function decodeJwt(token){
+  try{
+    const payload = token.split('.')[1];
+    const json = decodeURIComponent(atob(payload.replace(/-/g,'+').replace(/_/g,'/')).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+    return JSON.parse(json);
+  }catch(e){ return {}; }
+}
+
+/* ============================== TOPBAR ============================== */
+function renderTopbar(){
+  const dotClass = state.wsStatus==='up' ? 'up' : (state.wsStatus==='down' ? 'down' : '');
+  const label = state.wsStatus==='up' ? 'live' : (state.wsStatus==='connecting' ? 'connecting…' : 'disconnected');
+  return `
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark">Relay</span><span class="brand-sub">backend console</span></div>
+    <div class="conn"><span class="conn-dot ${dotClass}"></span>${label} — <span class="mono">${escapeHtml(state.wsUrl)}</span></div>
+    <div class="topbar-spacer"></div>
+    <div class="who">signed in as <b>${escapeHtml(state.me.name || state.me.phone)}</b> <span class="mono">${escapeHtml(state.me.phone||'')}</span></div>
+    <button class="btn ghost small" id="btnReconnect">Reconnect</button>
+    <button class="btn ghost small" id="btnToggleConsole">${state.consoleOpen?'Hide console':'Show console'}</button>
+    <button class="btn small" id="btnLogout">Log out</button>
+  </div>`;
+}
+function bindTopbar(){
+  document.getElementById('btnReconnect').addEventListener('click', connectWs);
+  document.getElementById('btnToggleConsole').addEventListener('click', ()=>{ state.consoleOpen = !state.consoleOpen; render(); });
+  document.getElementById('btnLogout').addEventListener('click', logout);
+}
+
+/* ============================== SIDEBAR ============================== */
+function renderSidebar(){
+  const chats = state.conversations.slice().sort((a,b)=> new Date(b.last_message_at||0) - new Date(a.last_message_at||0));
+  const groupList = Object.values(state.groups);
+
+  return `
+  <div class="sidebar">
+    <div class="identity">
+      <div class="avatar">${initials(state.me.name||state.me.phone)}</div>
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(state.me.name||'—')}</div>
+        <div class="item-sub">${escapeHtml(state.me.phone||'')}</div>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab ${state.sidebarTab==='chats'?'active':''}" data-tab="chats">Chats</button>
+      <button class="tab ${state.sidebarTab==='groups'?'active':''}" data-tab="groups">Groups</button>
+    </div>
+    ${state.sidebarTab==='chats' ? `
+      <form class="newchat-form" id="newChatForm">
+        <input class="mono" name="phone" placeholder="Message a phone number…" required>
+        <button class="btn small" type="submit">Open</button>
+      </form>
+      <div class="list">
+        ${chats.length===0 && !hasAdHocChats() ? `<div class="list-empty">No conversations yet. Enter a phone number above to start one — it's created the moment you send a message.</div>` : ''}
+        ${renderChatItems(chats)}
+      </div>
+    ` : `
+      <form class="newchat-form" id="newGroupForm">
+        <input name="name" placeholder="New group name…" required>
+        <button class="btn small" type="submit">Create</button>
+      </form>
+      <div class="list">
+        ${groupList.length===0 ? `<div class="list-empty">No groups yet. Group data loads automatically after connecting (via the "auth" WebSocket event).</div>` : ''}
+        ${groupList.map(g=>`
+          <div class="item ${state.activeChat && state.activeChat.type==='group' && state.activeChat.id===g.id ? 'active':''}" data-open-group="${escapeAttr(g.id)}">
+            <div class="avatar">${initials(g.group_name)}</div>
+            <div class="item-main">
+              <div class="item-title">${escapeHtml(g.group_name)}</div>
+              <div class="item-sub">${(g.participants?g.participants.size:0)} members${g.admin_phone===state.me.phone?' · you\'re admin':''}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `}
+  </div>`;
+}
+
+function hasAdHocChats(){
+  return Object.keys(state.dmMeta).some(p => !state.conversations.some(c => c.user1_phone===p || c.user2_phone===p));
+}
+
+function renderChatItems(chats){
+  // merge server conversations with any ad-hoc phones we've started chatting with locally
+  const known = new Set();
+  let html = '';
+  chats.forEach(c=>{
+    const peer = c.user1_phone === state.me.phone ? c.user2_phone : c.user1_phone;
+    known.add(peer);
+    html += chatItemHtml(peer, c.id);
+  });
+  Object.keys(state.dmMeta).forEach(peer=>{
+    if(!known.has(peer)) html += chatItemHtml(peer, state.dmMeta[peer].conversationId);
+  });
+  return html;
+}
+function chatItemHtml(peer, conversationId){
+  const active = state.activeChat && state.activeChat.type==='dm' && state.activeChat.phone===peer;
+  const msgs = state.dmMessagesByPhone[peer] || [];
+  const last = msgs[msgs.length-1];
+  return `
+    <div class="item ${active?'active':''}" data-open-dm="${escapeAttr(peer)}" data-cid="${escapeAttr(conversationId||'')}">
+      <div class="avatar">${initials(peer)}</div>
+      <div class="item-main">
+        <div class="item-title mono">${escapeHtml(peer)}</div>
+        <div class="item-sub">${last ? escapeHtml(truncate(last.content,34)) : 'no messages loaded'}</div>
+      </div>
+    </div>`;
+}
+
+function bindSidebar(){
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>{ state.sidebarTab = t.dataset.tab; render(); }));
+  const ncf = document.getElementById('newChatForm');
+  if(ncf) ncf.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const phone = new FormData(ncf).get('phone').trim();
+    if(!phone) return;
+    openDm(phone);
+  });
+  const ngf = document.getElementById('newGroupForm');
+  if(ngf) ngf.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const name = new FormData(ngf).get('name').trim();
+    if(!name) return;
+    createRoom(name);
+    ngf.reset();
+  });
+  document.querySelectorAll('[data-open-dm]').forEach(el=>el.addEventListener('click', async ()=>{
+    const phone = el.dataset.openDm;
+    const cid = el.dataset.cid;
+    await openDm(phone, cid || null);
+  }));
+  document.querySelectorAll('[data-open-group]').forEach(el=>el.addEventListener('click', ()=>{
+    state.activeChat = { type:'group', id: el.dataset.openGroup };
+    state.groupSettingsOpen = false;
+    render();
+  }));
+}
+
+async function openDm(phone, conversationId){
+  if(!state.dmMeta[phone]) state.dmMeta[phone] = { conversationId: conversationId || null };
+  if(conversationId) state.dmMeta[phone].conversationId = conversationId;
+  state.activeChat = { type:'dm', phone };
+  render();
+  if(state.dmMeta[phone].conversationId && !state.dmMessagesByPhone[phone]){
+    await loadDmMessages(phone, state.dmMeta[phone].conversationId);
+  }
+}
+
+/* ============================== HTTP calls ============================== */
+async function loadConversations(){
+  const {ok, data} = await httpCall('POST', '/myconversation', {}, true);
+  if(ok && Array.isArray(data)) state.conversations = data;
+  else state.conversations = [];
+  render();
+}
+
+async function loadDmMessages(peer, conversationId){
+  const {ok, data} = await httpCall('POST', '/getmessages', { conversationId }, true);
+  if(ok && data && Array.isArray(data.messages)){
+    state.dmMessagesByPhone[peer] = data.messages;
+  }
+  render();
+}
+
+async function loadGroupMessages(groupId){
+  const {ok, data} = await httpCall('POST', '/getgroupmessages', { groupId }, true);
+  if(ok && data && Array.isArray(data.messages) && state.groups[groupId]){
+    state.groups[groupId].messages = data.messages;
+  }
+  render();
+}
+
+/* ============================== CHAT PANE ============================== */
+function renderChatPane(){
+  if(!state.activeChat){
+    return `<div class="chat"><div class="chat-empty">
+      <div class="em-title">Nothing open</div>
+      <div class="em-sub">Pick a conversation or group on the left, or start a new one by phone number.</div>
+    </div></div>`;
+  }
+  if(state.activeChat.type === 'dm') return renderDmPane(state.activeChat.phone);
+  return renderGroupPane(state.activeChat.id);
+}
+
+function renderDmPane(peer){
+  const msgs = state.dmMessagesByPhone[peer] || [];
+  return `
+  <div class="chat">
+    <div class="chat-header">
+      <div class="avatar">${initials(peer)}</div>
+      <div class="item-main"><div class="item-title mono">${escapeHtml(peer)}</div><div class="item-sub">direct message</div></div>
+      <div class="chat-header-spacer"></div>
+    </div>
+    <div class="messages" id="messagesEl">${renderDmMessages(msgs, peer)}</div>
+    <div class="typing-line" id="typingLine">${state.typingFrom[peer] ? 'typing…' : ''}</div>
+    <form class="composer" id="composerForm">
+      <textarea name="content" placeholder="Message ${peer}" required></textarea>
+      <button class="btn primary" type="submit">Send</button>
+    </form>
+  </div>`;
+}
+
+function renderDmMessages(msgs, peer){
+  if(msgs.length===0) return `<div class="list-empty">No messages yet — say hello.</div>`;
+  return msgs.map(m=>{
+    const mine = m.sender_phone === state.me.phone;
+    const pending = m._pending;
+    const seen = m.status === 'seen';
+    return `
+    <div class="bubble-row ${mine?'me':''}">
+      <div>
+        <div class="bubble ${pending?'pending':''}">
+          <div class="bubble-text">${escapeHtml(m.content)}</div>
+          <div class="bubble-meta">
+            <span>${formatTime(m.created_at)}</span>
+            ${mine ? `<span class="tick ${seen?'seen':''}">${pending?'sending…':(seen?'✓✓ seen':(m.status==='delivered'?'✓✓':'✓'))}</span>` : ''}
+          </div>
+        </div>
+        ${(!mine && m.id) ? `<div class="bubble-actions"><button data-mark-seen="${escapeAttr(m.id)}" data-peer="${escapeAttr(peer)}">mark seen</button></div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderGroupPane(groupId){
+  const g = state.groups[groupId];
+  if(!g) return `<div class="chat"><div class="chat-empty"><div class="em-title">Group not loaded</div></div></div>`;
+  const msgs = g.messages || [];
+  const isAdmin = g.admin_phone === state.me.phone;
+  const participants = Array.from(g.participants || []);
+  return `
+  <div class="chat">
+    <div class="chat-header">
+      <div class="avatar">${initials(g.group_name)}</div>
+      <div class="item-main"><div class="item-title">${escapeHtml(g.group_name)}</div><div class="item-sub">${participants.length} members${isAdmin?' · admin':''}</div></div>
+      <div class="chat-header-spacer"></div>
+      <button class="btn ghost small" id="btnLoadGroupHistory">Load history</button>
+      <button class="btn ghost small" id="btnToggleGroupSettings">${state.groupSettingsOpen?'Hide members':'Members'}</button>
+    </div>
+    ${g.pinned ? `<div class="pin-bar">📌 <b>Pinned</b><span class="pin-text">${escapeHtml(g.pinned.content||'')}</span><button class="btn ghost small" id="btnUnpin" data-msg="${escapeAttr(g.pinned.id)}">Unpin</button></div>` : ''}
+    ${state.groupSettingsOpen ? renderGroupSettings(g, isAdmin, participants) : ''}
+    <div class="messages" id="messagesEl">${renderGroupMessages(msgs, g)}</div>
+    <div class="typing-line"></div>
+    <form class="composer" id="composerForm">
+      <textarea name="content" placeholder="Message ${escapeAttrText(g.group_name)}" required></textarea>
+      <button class="btn primary" type="submit">Send</button>
+    </form>
+  </div>`;
+}
+
+function renderGroupSettings(g, isAdmin, participants){
+  return `
+  <div class="group-panel"><div class="group-panel-inner">
+    <div class="gp-block">
+      <h4>Members (${participants.length})</h4>
+      <div class="chip-list">
+        ${participants.map(p=>`
+          <div class="chip ${p===g.admin_phone?'admin':''}">${escapeHtml(p)}${p===g.admin_phone?' · admin':''}
+            ${isAdmin && p!==g.admin_phone ? `<button data-remove-member="${escapeAttr(p)}" title="Remove">✕</button>` : ''}
+          </div>`).join('')}
+      </div>
+      ${isAdmin ? `
+      <form class="gp-form" id="addMemberForm">
+        <input class="mono" name="phone" placeholder="Phone to add" required>
+        <button class="btn small" type="submit">Add</button>
+      </form>` : `<div class="hint">Only the admin (${escapeHtml(g.admin_phone)}) can add or remove members.</div>`}
+    </div>
+    <div class="gp-block">
+      <h4>Leave group</h4>
+      <form class="gp-form" id="leaveGroupForm">
+        <select name="newAdmin">
+          <option value="">No new admin</option>
+          ${participants.filter(p=>p!==state.me.phone).map(p=>`<option value="${escapeAttr(p)}">Hand admin to ${escapeAttrText(p)}</option>`).join('')}
+        </select>
+        <button class="btn small danger" type="submit">Leave</button>
+      </form>
+    </div>
+  </div></div>`;
+}
+
+function renderGroupMessages(msgs, g){
+  if(msgs.length===0) return `<div class="list-empty">No messages loaded. Send one, or click "Load history".</div>`;
+  return msgs.map(m=>{
+    const mine = m.sender_phone === state.me.phone;
+    const pending = m._pending;
+    const pinned = g.pinned && g.pinned.id === m.id;
+    return `
+    <div class="bubble-row ${mine?'me':''}">
+      <div>
+        <div class="bubble ${pending?'pending':''} ${pinned?'pinned':''}">
+          ${!mine ? `<div class="bubble-sender">${escapeHtml(m.sender_name || m.sender_phone)}</div>` : ''}
+          <div class="bubble-text">${escapeHtml(m.content)}</div>
+          <div class="bubble-meta"><span>${formatTime(m.created_at)}</span>${pending?'<span>sending…</span>':''}</div>
+        </div>
+        ${m.id ? `<div class="bubble-actions">${pinned ? `<button data-unpin="${escapeAttr(m.id)}">unpin</button>` : `<button data-pin="${escapeAttr(m.id)}">pin</button>`}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function bindChatPane(){
+  const msgsEl = document.getElementById('messagesEl');
+  if(msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
+
+  const form = document.getElementById('composerForm');
+  if(form){
+    const ta = form.querySelector('textarea');
+    ta.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); form.requestSubmit(); }
+    });
+    let typingTimer = null;
+    ta.addEventListener('input', ()=>{
+      if(state.activeChat.type !== 'dm') return;
+      sendWs('typing', { reciever_phonenum: state.activeChat.phone, sender_phone: state.me.phone });
+      clearTimeout(typingTimer);
+    });
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const content = new FormData(form).get('content').trim();
+      if(!content) return;
+      if(state.activeChat.type === 'dm') sendDmMessage(state.activeChat.phone, content);
+      else sendGroupMessage(state.activeChat.id, content);
+      ta.value=''; ta.focus();
+    });
+  }
+
+  document.querySelectorAll('[data-mark-seen]').forEach(b=>b.addEventListener('click', ()=>{
+    markSeen(b.dataset.markSeen, b.dataset.peer);
+  }));
+
+  const btnLoadHist = document.getElementById('btnLoadGroupHistory');
+  if(btnLoadHist) btnLoadHist.addEventListener('click', ()=> loadGroupMessages(state.activeChat.id));
+  const btnGs = document.getElementById('btnToggleGroupSettings');
+  if(btnGs) btnGs.addEventListener('click', ()=>{ state.groupSettingsOpen = !state.groupSettingsOpen; render(); });
+
+  const addMemberForm = document.getElementById('addMemberForm');
+  if(addMemberForm) addMemberForm.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const phone = new FormData(addMemberForm).get('phone').trim();
+    if(phone) addMember(state.activeChat.id, phone);
+    addMemberForm.reset();
+  });
+  document.querySelectorAll('[data-remove-member]').forEach(b=>b.addEventListener('click', ()=>{
+    removeMember(state.activeChat.id, b.dataset.removeMember);
+  }));
+  const leaveForm = document.getElementById('leaveGroupForm');
+  if(leaveForm) leaveForm.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const newAdmin = new FormData(leaveForm).get('newAdmin');
+    leaveGroup(state.activeChat.id, newAdmin || null);
+  });
+  document.querySelectorAll('[data-pin]').forEach(b=>b.addEventListener('click', ()=> pinMessage(b.dataset.pin)));
+  const unpinTop = document.getElementById('btnUnpin');
+  if(unpinTop) unpinTop.addEventListener('click', ()=> unpinMessage(unpinTop.dataset.msg));
+  document.querySelectorAll('[data-unpin]').forEach(b=>b.addEventListener('click', ()=> unpinMessage(b.dataset.unpin)));
+}
+
+/* ---------------------------- chat actions (optimistic) ---------------------------- */
+function sendDmMessage(peer, content){
+  const tempid = newTempId('dm');
+  const optimistic = { id:null, tempid, sender_phone: state.me.phone, receiver_phone: peer, content, created_at: new Date().toISOString(), status:'sending', _pending:true };
+  if(!state.dmMessagesByPhone[peer]) state.dmMessagesByPhone[peer] = [];
+  state.dmMessagesByPhone[peer].push(optimistic);
+  if(!state.dmMeta[peer]) state.dmMeta[peer] = { conversationId:null };
+  render();
+  sendWs('chat', { sender_phonenum: state.me.phone, reciever_phonenum: peer, content, tempid });
+}
+
+function sendGroupMessage(groupId, content){
+  const g = state.groups[groupId]; if(!g) return;
+  const tempmsgId = newTempId('grp');
+  const optimistic = { id:null, tempmsgId, sender_phone: state.me.phone, group_id: groupId, content, created_at: new Date().toISOString(), _pending:true };
+  g.messages = g.messages || [];
+  g.messages.push(optimistic);
+  render();
+  sendWs('sendtoroom', { roomId: groupId, tempmsgId, sender_phone: state.me.phone, message: content });
+}
+
+function markSeen(messageId, peer){
+  sendWs('seen', { messageId, rec_phone: peer });
+  const list = state.dmMessagesByPhone[peer] || [];
+  const m = list.find(x=>String(x.id)===String(messageId));
+  if(m){ m.status = 'seen'; render(); }
+}
+
+function createRoom(name){
+  const tempid = newTempId('room');
+  state._pendingRoomName = state._pendingRoomName || {};
+  state._pendingRoomName[tempid] = name;
+  sendWs('create-room', { sender_phone: state.me.phone, group_name: name, tempid });
+}
+
+function addMember(groupId, phone){
+  sendWs('addtoroom', { roomId: groupId, receiver_phone: phone, sender_phone: state.me.phone });
+}
+function removeMember(groupId, phone){
+  sendWs('removeuser', { roomId: groupId, receiver_phone: phone });
+}
+function leaveGroup(groupId, newAdmin){
+  sendWs('leaveroom', { sender_phone: state.me.phone, roomId: groupId, newAdmin: newAdmin || undefined });
+}
+function pinMessage(msgId){ sendWs('pinmsg', { msgId, sender_phone: state.me.phone }); }
+function unpinMessage(msgId){ sendWs('unpin', { msgId, sender_phone: state.me.phone }); }
+
+/* ============================== WEBSOCKET ============================== */
+function connectWs(){
+  if(state.ws){ try{ state.ws.close(); }catch(e){} }
+  state.wsStatus = 'connecting'; render();
+  let socket;
+  try{
+    socket = new WebSocket(state.wsUrl);
+  }catch(err){
+    state.wsStatus = 'down'; addLog('err', 'WebSocket URL invalid', String(err)); render(); return;
+  }
+  state.ws = socket;
+
+  socket.addEventListener('open', ()=>{
+    state.wsStatus = 'up';
+    addLog('out', 'connection opened', {url: state.wsUrl});
+    sendWs('auth', state.token);
+    render();
+  });
+  socket.addEventListener('close', ()=>{
+    state.wsStatus = 'down';
+    addLog('in', 'connection closed', {});
+    render();
+  });
+  socket.addEventListener('error', ()=>{
+    addLog('err', 'socket error', {});
+  });
+  socket.addEventListener('message', (ev)=> handleWsMessage(ev.data));
+}
+
+function sendWs(event, data){
+  if(!state.ws || state.wsStatus !== 'up'){
+    toast('Not connected — click Reconnect.', 'err');
+    return;
+  }
+  const payload = { event, data };
+  addLog('out', event, payload);
+  state.ws.send(JSON.stringify(payload));
+}
+
+function handleWsMessage(raw){
+  let msg;
+  try{ msg = JSON.parse(raw); }
+  catch(e){ addLog('in', 'text', raw); if(raw==='connected') toast('WebSocket connected.', 'info'); return; }
+
+  const ev = (msg.event || '').trim();
+  addLog('in', ev || '(no event field)', msg);
+
+  switch(ev){
+    case 'group-data': {
+      const rows = Array.isArray(msg.message) ? msg.message : [];
+      rows.forEach(r=>{
+        const existing = state.groups[r.id];
+        state.groups[r.id] = {
+          id: r.id, group_name: r.group_name, admin_phone: r.admin_phone,
+          participants: new Set(r.participants||[]),
+          messages: existing ? existing.messages : [],
+          pinned: existing ? existing.pinned : null,
+        };
+      });
+      render();
+      break;
+    }
+    case 'chat': {
+      const message = msg.messageResult || msg.content;
+      if(message){
+        const peer = message.sender_phone === state.me.phone ? message.receiver_phone : message.sender_phone;
+        if(!state.dmMessagesByPhone[peer]) state.dmMessagesByPhone[peer] = [];
+        state.dmMessagesByPhone[peer].push(message);
+        if(!state.dmMeta[peer]) state.dmMeta[peer] = { conversationId: message.conversation_id || null };
+        if(message.conversation_id) state.dmMeta[peer].conversationId = message.conversation_id;
+        if(!(state.activeChat && state.activeChat.type==='dm' && state.activeChat.phone===peer)) toast(peer+': '+truncate(message.content,60), 'info');
+      }
+      render();
+      break;
+    }
+    case 'typing': {
+      const peer = msg.sender_phone;
+      if(peer){
+        state.typingFrom[peer] = true; render();
+        clearTimeout(state._typingTimers && state._typingTimers[peer]);
+        state._typingTimers = state._typingTimers || {};
+        state._typingTimers[peer] = setTimeout(()=>{ delete state.typingFrom[peer]; render(); }, 2500);
+      }
+      break;
+    }
+    case 'seen': {
+      Object.values(state.dmMessagesByPhone).forEach(list=>{
+        const m = list.find(x=>String(x.id)===String(msg.messageId));
+        if(m) m.status = 'seen';
+      });
+      render();
+      break;
+    }
+    case 'group message recieved': {
+      const m = msg.message;
+      if(m && state.groups[m.group_id]){
+        state.groups[m.group_id].messages = state.groups[m.group_id].messages || [];
+        state.groups[m.group_id].messages.push(m);
+        if(!(state.activeChat && state.activeChat.type==='group' && state.activeChat.id===m.group_id)) toast('New message in group', 'info');
+      }
+      render();
+      break;
+    }
+    case 'added to a room': {
+      toast('Added to group "'+msg.groupName+'"', 'good');
+      break;
+    }
+    case 'user added': toast('Member added.', 'good'); break;
+    case 'unathorized action': toast(msg.message || 'Not authorized.', 'err'); break;
+    case 'invalid room creds': toast(msg.message || 'Group does not exist.', 'err'); break;
+    case 'removed from the group': {
+      toast('You were removed from a group.', 'err');
+      if(msg.roomId){ delete state.groups[msg.roomId]; if(state.activeChat && state.activeChat.id===msg.roomId) state.activeChat=null; }
+      render();
+      break;
+    }
+    case 'user removal': toast(msg.message || 'Member removed.', 'good'); break;
+    case 'notify others': {
+      toast(msg.message || 'Group updated.', 'info');
+      if(msg.roomId && state.groups[msg.roomId]){
+        state.groups[msg.roomId].messages = state.groups[msg.roomId].messages || [];
+        state.groups[msg.roomId].messages.push({ id:null, sender_phone:'system', sender_name:'System', content: msg.message, created_at: new Date().toISOString(), group_id: msg.roomId, system:true });
+        render();
+      }
+      break;
+    }
+    case 'removal success': toast(msg.message || 'Removed.', 'good'); break;
+    case 'error while removal': toast(msg.message || 'Removal failed.', 'err'); break;
+    case 'not participant': toast(msg.message || 'User not in group.', 'err'); break;
+    case 'left-group': {
+      toast(msg.message || 'You left the group.', 'good');
+      if(state.activeChat && state.activeChat.type==='group'){ delete state.groups[state.activeChat.id]; state.activeChat=null; }
+      render();
+      break;
+    }
+    case 'issue with group leaving': toast(msg.message || 'Could not leave group.', 'err'); break;
+    case 'error': toast(msg.err_msg || msg.message || 'Server error.', 'err'); break;
+    case 'auth': {
+      toast('Session expired — please log in again.', 'err');
+      logout();
+      break;
+    }
+    case 'pinned':
+    case 'unpinned': {
+      const info = msg.pinInfo;
+      if(info){
+        const gid = info.group_id;
+        if(gid && state.groups[gid]){
+          state.groups[gid].pinned = ev==='pinned' && info.is_pinned ? info : (ev==='pinned' ? info : null);
+          if(ev==='unpinned') state.groups[gid].pinned = null;
+          const list = state.groups[gid].messages || [];
+          const m = list.find(x=>String(x.id)===String(info.id));
+          if(m) Object.assign(m, info);
+        }
+      }
+      render();
+      break;
+    }
+    default: {
+      // no-event acks — disambiguate by shape (backend quirk: several acks omit "event")
+      if(msg.tempid && msg.correctid && msg.status){
+        reconcileDm(msg.tempid, msg.correctid, msg.status);
+      } else if(msg.tempid && msg.correctid !== undefined && msg.message){
+        reconcileRoom(msg.tempid, msg.correctid);
+      } else if(msg.tempmsgId && msg.correctid !== undefined){
+        reconcileGroupMsg(msg.tempmsgId, msg.correctid, msg.message);
+      } else if(msg.message && !ev){
+        toast(msg.message, msg.error ? 'err' : 'info');
+      }
+      render();
+    }
+  }
+}
+
+function reconcileDm(tempid, correctid, status){
+  Object.keys(state.dmMessagesByPhone).forEach(peer=>{
+    const list = state.dmMessagesByPhone[peer];
+    const m = list.find(x=>x.tempid===tempid);
+    if(m){ m.id = correctid; m.status = status; m._pending = false; }
+  });
+}
+function reconcileRoom(tempid, correctid){
+  const name = state._pendingRoomName && state._pendingRoomName[tempid];
+  if(correctid){
+    state.groups[correctid] = state.groups[correctid] || {
+      id: correctid, group_name: name || ('Group '+correctid), admin_phone: state.me.phone,
+      participants: new Set([state.me.phone]), messages: [], pinned: null,
+    };
+    toast('Group "'+(name||correctid)+'" created.', 'good');
+  }
+}
+function reconcileGroupMsg(tempmsgId, correctid, message){
+  Object.values(state.groups).forEach(g=>{
+    const list = g.messages || [];
+    const m = list.find(x=>x.tempmsgId===tempmsgId);
+    if(m){ m.id = correctid; m._pending = false; }
+  });
+  if(message && typeof message === 'string' && /error/i.test(message)) toast(message, 'err');
+}
+
+/* ============================== CONSOLE ============================== */
+function renderConsole(){
+  return `
+  <div class="console">
+    <div class="console-tabs">
+      <button class="console-tab ${state.consoleTab==='log'?'active':''}" data-ctab="log">Activity (${state.log.length})</button>
+      <button class="console-tab ${state.consoleTab==='raw'?'active':''}" data-ctab="raw">Raw send</button>
+    </div>
+    ${state.consoleTab==='log' ? renderLogList() : renderRawSend()}
+  </div>`;
+}
+
+function renderLogList(){
+  if(state.log.length===0) return `<div class="log-list"><div class="log-empty">Every HTTP call and WebSocket event — sent and received — will appear here as you use the app.</div></div>`;
+  const items = state.log.slice().reverse();
+  return `<div class="log-list" id="logList">
+    ${items.map((l,i)=>`
+      <div class="log-entry">
+        <div class="log-head" data-logtoggle="${l._id}">
+          <span class="log-dir ${l.dir}">${l.dir}</span>
+          <span class="log-label">${escapeHtml(l.label)}</span>
+          <span class="log-time">${l.time}</span>
+        </div>
+        <div class="log-body ${l._open?'':'hidden'}" id="logbody-${l._id}"><pre>${escapeHtml(safeStringify(l.payload))}</pre></div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function renderRawSend(){
+  const events = ['auth','chat','typing','seen','create-room','addtoroom','sendtoroom','leaveroom','removeuser','pinmsg','unpin'];
+  return `<div class="raw-send">
+    <div class="hint">Send any event straight over the socket to test edge cases the UI doesn't cover. The payload is sent as <span class="mono">{event, data}</span>.</div>
+    <div class="field"><span class="field-label">Event name</span>
+      <select id="rawEvent">${events.map(e=>`<option value="${e}">${e}</option>`).join('')}<option value="__custom">custom…</option></select>
+    </div>
+    <div class="field" id="rawCustomWrap"><span class="field-label">Custom event name</span><input id="rawCustomEvent" placeholder="event name"></div>
+    <div class="field"><span class="field-label">Data (JSON)</span><textarea id="rawData" spellcheck="false">{}</textarea></div>
+    <button class="btn primary" id="rawSendBtn">Send over WebSocket</button>
+    <div class="hint">HTTP endpoints are also logged automatically — trigger signup / login / load-history from the app to see their requests and responses here.</div>
+  </div>`;
+}
+
+function bindConsole(){
+  document.querySelectorAll('[data-ctab]').forEach(t=>t.addEventListener('click', ()=>{ state.consoleTab = t.dataset.ctab; render(); }));
+  document.querySelectorAll('[data-logtoggle]').forEach(h=>h.addEventListener('click', ()=>{
+    const id = h.dataset.logtoggle;
+    const entry = state.log.find(l=>String(l._id)===id);
+    if(entry) entry._open = !entry._open;
+    render();
+  }));
+  const rawEvent = document.getElementById('rawEvent');
+  const customWrap = document.getElementById('rawCustomWrap');
+  if(rawEvent){
+    const sync = ()=> customWrap.style.display = rawEvent.value==='__custom' ? 'block' : 'none';
+    sync(); rawEvent.addEventListener('change', sync);
+  }
+  const btn = document.getElementById('rawSendBtn');
+  if(btn) btn.addEventListener('click', ()=>{
+    const evName = rawEvent.value==='__custom' ? document.getElementById('rawCustomEvent').value.trim() : rawEvent.value;
+    let data;
+    try{ data = JSON.parse(document.getElementById('rawData').value); }
+    catch(e){ toast('Data must be valid JSON.', 'err'); return; }
+    sendWs(evName, data);
+  });
+}
+
+function addLog(dir, label, payload){
+  state.log.push({ _id: state.log.length+1+'_'+Date.now(), dir, label, payload, time: formatClock(new Date()), _open:false });
+  if(state.log.length > 300) state.log.shift();
+  if(state.consoleOpen) queueMicrotask(()=>{ const el=document.getElementById('logList'); if(el && state.consoleTab==='log') el.scrollTop=0; });
+}
+
+/* ============================== HTTP wrapper ============================== */
+async function httpCall(method, path, body, authed){
+  const url = state.httpBase.replace(/\/$/,'') + path;
   const headers = { 'Content-Type': 'application/json' };
-  if (withToken) {
-    const token = getToken();
-    if (token) headers['token'] = token;
+  if(authed && state.token) headers['token'] = state.token;
+  const label = method + ' ' + path;
+  addLog('http', label + ' →', { url, headers, body });
+  try{
+    const res = await fetch(url, { method, headers, body: body!==undefined ? JSON.stringify(body) : undefined });
+    const text = await res.text();
+    let data = null;
+    try{ data = text ? JSON.parse(text) : null; }catch(e){ data = null; }
+    addLog(res.ok ? 'http' : 'err', label + ' ← ' + res.status, data!==null ? data : text);
+    return { ok: res.ok, status: res.status, data, raw: text };
+  }catch(err){
+    addLog('err', label + ' ← network error', String(err));
+    return { ok:false, status:0, data:null, raw: String(err) };
   }
-  const opts = { method, headers };
-  if (body) opts.body = JSON.stringify(body);
-  
-  const res = await fetch(`${API_BASE}${endpoint}`, opts);
-  const text = await res.text();
-  try { return JSON.parse(text); } catch { return { raw: text }; }
 }
 
-async function login(phone, password) {
-  return apiCall('/login', 'POST', { phone, password }, false);
+/* ============================== toasts & helpers ============================== */
+function toast(text, kind){
+  const wrap = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind==='err' ? ' err' : (kind==='info' ? ' info' : ''));
+  el.textContent = text;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; setTimeout(()=>el.remove(), 260); }, 3400);
 }
 
-async function signup(phone, password, name) {
-  return apiCall('/signup', 'POST', { phone, password, name }, false);
-}
-
-async function getConversations() {
-  return apiCall('/myconversation', 'POST', {}, true);
-}
-
-async function getMessages(conversationId) {
-  return apiCall('/getmessages', 'POST', { conversationId }, true);
-}
-
-async function getGroupMessages(groupId) {
-  return apiCall('/getgroupmessages', 'POST', { groupId }, true);
-}
-
-// ============================================================
-// APP COMPONENT
-// ============================================================
-function App() {
-  // --- Auth state ---
-  const [me, setMe] = useState(null);
-  const [screen, setScreen] = useState('login');
-  const [authError, setAuthError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  // --- Data state ---
-  const [conversations, setConversations] = useState([]);
-  const [messagesCache, setMessagesCache] = useState({});
-  const [groupMessagesCache, setGroupMessagesCache] = useState({});
-  const [groups, setGroups] = useState([]);
-
-  // --- UI state ---
-  const [activeTab, setActiveTab] = useState('chats');
-  const [activeChat, setActiveChat] = useState(null); // { type: 'convo'|'group', id }
-  const [typingFrom, setTypingFrom] = useState(null);
-  const [toasts, setToasts] = useState([]);
-  const [showNewGroup, setShowNewGroup] = useState(false);
-  const [showMembers, setShowMembers] = useState(false);
-  const [newChatPhone, setNewChatPhone] = useState('');
-  const [newGroupName, setNewGroupName] = useState('');
-  const [newGroupMembers, setNewGroupMembers] = useState('');
-  const [draft, setDraft] = useState('');
-  const typingTimeout = useRef(null);
-  const messagesEndRef = useRef(null);
-  const wsRef = useRef(null);
-  const reconnectTimeout = useRef(null);
-
-  // --- Toast system ---
-  function pushToast(text) {
-    const id = Date.now() + Math.random();
-    setToasts(t => [...t, { id, text }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3200);
-  }
-
-  // --- WebSocket connection with reconnect ---
-  const connectWebSocket = useCallback(() => {
-    const token = getToken();
-    if (!token) {
-      console.log('No token, skipping WebSocket connection');
-      return null;
-    }
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      return wsRef.current;
-    }
-
-    const ws = new WebSocket(WS_URL);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      pushToast('Connected to server');
-      ws.send(JSON.stringify({ event: 'auth', data: token }));
-    };
-
-    ws.onmessage = (event) => {
-      let msg = null;
-      let isJson = false;
-      
-      try {
-        msg = JSON.parse(event.data);
-        isJson = true;
-        console.log('WS message (JSON):', msg);
-      } catch (e) {
-        console.log('WS message (plain text):', event.data);
-        if (event.data === 'connected') {
-          pushToast('Connected to WebSocket server');
-        }
-        return;
-      }
-
-      if (!isJson) return;
-
-      // --- Handle JSON messages ---
-
-      // Auth success - load conversations and groups
-      if (msg.event === 'auth_success') {
-        pushToast('Authenticated with WebSocket');
-        loadConversations();
-        // Groups will be loaded via group-data event
-      }
-
-      // Auth failed
-      if (msg.event === 'auth' && msg.message) {
-        pushToast('Auth failed: ' + msg.message);
-        localStorage.removeItem('token');
-        setMe(null);
-        ws.close();
-      }
-
-      // Group data from auth
-      if (msg.event === 'group-data') {
-        const groupData = msg.message || msg.data || [];
-        if (Array.isArray(groupData) && groupData.length > 0) {
-          setGroups(groupData);
-          // Update in-memory groups cache
-          groupData.forEach(g => {
-            if (!groups.some(existing => existing.id === g.id)) {
-              setGroups(prev => [...prev, g]);
-            }
-          });
-        }
-      }
-
-      // Incoming 1-on-1 message
-      if (msg.event === 'chat') {
-        const messageData = msg.content || msg.messageResult || msg.data;
-        if (messageData) {
-          // Determine conversation ID
-          const convId = messageData.conversation_id;
-          if (convId) {
-            // Check if message already exists
-            setMessagesCache(prev => {
-              const existing = prev[convId] || [];
-              if (existing.find(m => m.id === messageData.id)) return prev;
-              return { ...prev, [convId]: [...existing, messageData] };
-            });
-            
-            // Update conversation list
-            setConversations(prev => {
-              const existing = prev.find(c => c.id === convId);
-              if (existing) {
-                return prev.map(c => 
-                  c.id === convId ? { ...c, last_message: messageData.content, last_message_at: messageData.created_at } : c
-                );
-              }
-              // New conversation - add it
-              const myPhone = getMyPhone();
-              const otherPhone = messageData.sender_phone === myPhone ? messageData.receiver_phone : messageData.sender_phone;
-              return [
-                {
-                  id: convId,
-                  user1_phone: messageData.sender_phone === myPhone ? myPhone : messageData.sender_phone,
-                  user2_phone: messageData.sender_phone === myPhone ? messageData.receiver_phone : messageData.sender_phone,
-                  other_user_name: otherPhone,
-                  other_user_phone: otherPhone,
-                  last_message: messageData.content,
-                  last_message_at: messageData.created_at
-                },
-                ...prev.filter(c => c.id !== convId)
-              ];
-            });
-
-            // ✅ Auto-mark as seen if the message is from someone else and we're in this chat
-            const myPhone = getMyPhone();
-            if (messageData.sender_phone !== myPhone && activeChat?.type === 'convo' && activeChat.id === convId) {
-              const conv = conversations.find(c => c.id === convId);
-              const otherPhone = conv ? (conv.user1_phone === myPhone ? conv.user2_phone : conv.user1_phone) : null;
-              if (otherPhone) {
-                setTimeout(() => markSeen(messageData.id, otherPhone), 500);
-              }
-            }
-          }
-        }
-      }
-
-      // Incoming group message
-      if (msg.event === 'group message recieved' || msg.event === 'group_message') {
-        const messageData = msg.message || msg.data;
-        if (messageData) {
-          const groupId = messageData.group_id;
-          if (groupId) {
-            // Check if message already exists
-            setGroupMessagesCache(prev => {
-              const existing = prev[groupId] || [];
-              if (existing.find(m => m.id === messageData.id)) return prev;
-              return { ...prev, [groupId]: [...existing, messageData] };
-            });
-          }
-        }
-      }
-
-      // ✅ Message status updates (sent/delivered)
-      if (msg.status === 'sent' || msg.status === 'delivered') {
-        if (msg.tempid) {
-          // Find the message by tempId in 1-on-1 messages
-          for (const convId in messagesCache) {
-            const idx = messagesCache[convId].findIndex(m => m.tempId === msg.tempid);
-            if (idx !== -1) {
-              setMessagesCache(prev => {
-                const updated = [...prev[convId]];
-                updated[idx] = { ...updated[idx], id: msg.correctid, status: msg.status, tempId: null };
-                return { ...prev, [convId]: updated };
-              });
-              break;
-            }
-          }
-          // Also check group messages
-          for (const groupId in groupMessagesCache) {
-            const idx = groupMessagesCache[groupId].findIndex(m => m.tempId === msg.tempid);
-            if (idx !== -1) {
-              setGroupMessagesCache(prev => {
-                const updated = [...prev[groupId]];
-                updated[idx] = { ...updated[idx], id: msg.correctid, status: msg.status, tempId: null };
-                return { ...prev, [groupId]: updated };
-              });
-              break;
-            }
-          }
-        }
-      }
-
-      // ✅ Seen status (sender receives this)
-      if (msg.event === 'seen') {
-        const messageId = msg.messageId;
-        // Update the message status to 'seen' in cache
-        for (const convId in messagesCache) {
-          const idx = messagesCache[convId].findIndex(m => m.id === messageId);
-          if (idx !== -1) {
-            setMessagesCache(prev => {
-              const updated = [...prev[convId]];
-              updated[idx] = { ...updated[idx], status: 'seen' };
-              return { ...prev, [convId]: updated };
-            });
-            break;
-          }
-        }
-      }
-
-      // Typing indicator
-      if (msg.event === 'typing') {
-        setTypingFrom(msg.sender_phone);
-        clearTimeout(typingTimeout.current);
-        typingTimeout.current = setTimeout(() => setTypingFrom(null), 3000);
-      }
-
-      // Group events
-      if (msg.message === 'room created succesfully') {
-        pushToast('Group created successfully!');
-        loadConversations();
-      }
-      if (msg.event === 'added to a room') {
-        pushToast(`You were added to "${msg.groupName || 'a group'}"`);
-        loadConversations();
-      }
-      if (msg.event === 'user added' || msg.message === 'user added to the room') {
-        pushToast('Member added to group');
-        loadConversations();
-      }
-      if (msg.event === 'left-group' || msg.event === 'user left the group') {
-        pushToast('You left the group');
-        loadConversations();
-        setActiveChat(null);
-      }
-      if (msg.event === 'removed from the group') {
-        pushToast('You were removed from the group');
-        loadConversations();
-        setActiveChat(null);
-      }
-      if (msg.event === 'notify others' && msg.message) {
-        // System notification - ignore or show quietly
-      }
-      if (msg.event === 'error') {
-        pushToast('Error: ' + (msg.err_msg || msg.message));
-      }
-      if (msg.event === 'removal success') {
-        pushToast('User removed successfully');
-        loadConversations();
-      }
-      if (msg.event === 'unathorized action') {
-        pushToast('Unauthorized: ' + (msg.message || ''));
-      }
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      pushToast('Disconnected from server');
-      // Attempt reconnect after 5 seconds
-      if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
-      reconnectTimeout.current = setTimeout(() => {
-        console.log('Attempting to reconnect...');
-        connectWebSocket();
-      }, 5000);
-    };
-
-    ws.onerror = (error) => {
-      console.error('WS error:', error);
-      pushToast('WebSocket error');
-    };
-
-    return ws;
-  }, []);
-
-  // --- Load conversations ---
-  const loadConversations = useCallback(async () => {
-    try {
-      const data = await getConversations();
-      console.log('Conversations:', data);
-      
-      // Handle different response formats
-      if (data && data.success && data.conversations) {
-        setConversations(data.conversations);
-      } else if (Array.isArray(data)) {
-        setConversations(data);
-      } else if (data && data.raw && typeof data.raw === 'string' && data.raw.includes('no active conversations')) {
-        setConversations([]);
-      } else if (typeof data === 'string' && data.includes('no active conversations')) {
-        setConversations([]);
-      } else {
-        // Try to parse as array if it's an object with numeric keys
-        if (data && typeof data === 'object' && !Array.isArray(data)) {
-          const arr = Object.values(data);
-          if (arr.length > 0 && arr[0] && typeof arr[0] === 'object') {
-            setConversations(arr);
-          } else {
-            setConversations([]);
-          }
-        } else {
-          setConversations([]);
-        }
-      }
-    } catch (error) {
-      console.error('Load conversations error:', error);
-      setConversations([]);
-    }
-  }, []);
-
-  // --- Load messages for a conversation ---
-  const loadMessages = useCallback(async (conversationId, isGroup = false) => {
-    if (!conversationId) return null;
-    try {
-      let data;
-      if (isGroup) {
-        data = await getGroupMessages(conversationId);
-        if (data && data.success && data.messages) {
-          setGroupMessagesCache(prev => ({ ...prev, [conversationId]: data.messages }));
-        } else if (Array.isArray(data)) {
-          setGroupMessagesCache(prev => ({ ...prev, [conversationId]: data }));
-        }
-      } else {
-        data = await getMessages(conversationId);
-        if (data && data.success && data.messages) {
-          setMessagesCache(prev => ({ ...prev, [conversationId]: data.messages }));
-        } else if (Array.isArray(data)) {
-          setMessagesCache(prev => ({ ...prev, [conversationId]: data }));
-        }
-      }
-      
-      // ✅ Mark the most recent received message as seen
-      const msgs = isGroup ? 
-        (data?.messages || (Array.isArray(data) ? data : [])) : 
-        (data?.messages || (Array.isArray(data) ? data : []));
-      
-      if (msgs && msgs.length > 0) {
-        const myPhone = getMyPhone();
-        let lastReceivedMsg = null;
-        for (let i = msgs.length - 1; i >= 0; i--) {
-          if (msgs[i].sender_phone !== myPhone && msgs[i].status !== 'seen') {
-            lastReceivedMsg = msgs[i];
-            break;
-          }
-        }
-        if (lastReceivedMsg && lastReceivedMsg.id && !isGroup) {
-          // Find the other phone number for the conversation
-          const conv = conversations.find(c => c.id === conversationId);
-          if (conv) {
-            const otherPhone = conv.user1_phone === myPhone ? conv.user2_phone : conv.user1_phone;
-            if (otherPhone) {
-              markSeen(lastReceivedMsg.id, otherPhone);
-            }
-          }
-        }
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('Load messages error:', error);
-      return null;
-    }
-  }, [conversations]);
-
-  // --- Open a conversation ---
-  const openConversation = useCallback(async (id, type) => {
-    if (!id) return;
-    const isGroup = type === 'group';
-    setActiveChat({ type, id });
-    await loadMessages(id, isGroup);
-  }, [loadMessages]);
-
-  // --- Send 1-on-1 message ---
-  const sendDirectMessage = useCallback((text) => {
-    if (!text.trim() || !activeChat || activeChat.type !== 'convo') return;
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      pushToast('WebSocket not connected');
-      return;
-    }
-
-    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-    const convId = activeChat.id;
-    const myPhone = getMyPhone();
-    
-    // Determine the receiver phone number
-    let receiverPhone = null;
-    if (convId && !convId.startsWith('temp_')) {
-      const conv = conversations.find(c => c.id === convId);
-      if (conv) {
-        receiverPhone = conv.user1_phone === myPhone ? conv.user2_phone : conv.user1_phone;
-      }
-    } else {
-      // For temp conversations, get from the conversation
-      const conv = conversations.find(c => c.id === convId);
-      if (conv) {
-        receiverPhone = conv.user1_phone === myPhone ? conv.user2_phone : conv.user1_phone;
-      }
-    }
-
-    if (!receiverPhone) {
-      pushToast('Could not determine recipient');
-      return;
-    }
-
-    // Optimistic UI
-    const msg = { 
-      id: tempId, 
-      tempId, 
-      sender_phone: myPhone, 
-      receiver_phone: receiverPhone,
-      content: text, 
-      created_at: new Date().toISOString(), 
-      status: 'sending',
-      conversation_id: convId
-    };
-    
-    // If it's a temp conversation, we need to update the conversation ID after the message is sent
-    const isTempConv = convId.startsWith('temp_');
-    
-    setMessagesCache(prev => ({
-      ...prev,
-      [convId]: [...(prev[convId] || []), msg]
-    }));
-
-    // Send via WebSocket
-    ws.send(JSON.stringify({
-      event: 'chat',
-      data: {
-        sender_phonenum: myPhone,
-        reciever_phonenum: receiverPhone,
-        content: text,
-        tempid: tempId
-      }
-    }));
-
-    setDraft('');
-    
-    // If temp conversation, the backend will create the conversation
-    // The response will contain the correct conversation ID
-  }, [activeChat, conversations]);
-
-  // --- Send group message ---
-  const sendGroupMessage = useCallback((text) => {
-    if (!text.trim() || !activeChat || activeChat.type !== 'group') return;
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      pushToast('WebSocket not connected');
-      return;
-    }
-
-    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-    const groupId = activeChat.id;
-    const myPhone = getMyPhone();
-
-    const msg = {
-      id: tempId,
-      tempId,
-      sender_phone: myPhone,
-      group_id: groupId,
-      content: text,
-      created_at: new Date().toISOString(),
-      status: 'sending'
-    };
-    setGroupMessagesCache(prev => ({
-      ...prev,
-      [groupId]: [...(prev[groupId] || []), msg]
-    }));
-
-    ws.send(JSON.stringify({
-      event: 'sendtoroom',
-      data: {
-        roomId: groupId,
-        sender_phone: myPhone,
-        message: text,
-        tempmsgId: tempId
-      }
-    }));
-
-    setDraft('');
-  }, [activeChat]);
-
-  // --- Start a new conversation ---
-  const startConversation = useCallback((phone) => {
-    if (!phone) {
-      pushToast('Please enter a phone number');
-      return;
-    }
-    
-    const myPhone = getMyPhone();
-    if (phone === myPhone) {
-      pushToast('You cannot chat with yourself');
-      return;
-    }
-    
-    // Check if conversation already exists
-    const existingConvo = conversations.find(c => 
-      (c.user1_phone === myPhone && c.user2_phone === phone) ||
-      (c.user1_phone === phone && c.user2_phone === myPhone)
-    );
-    
-    if (existingConvo) {
-      openConversation(existingConvo.id, 'convo');
-      pushToast('Conversation already exists');
-      return;
-    }
-    
-    // Create temporary conversation
-    const tempId = 'temp_' + Date.now();
-    const newConv = {
-      id: tempId,
-      user1_phone: myPhone,
-      user2_phone: phone,
-      other_user_name: phone,
-      other_user_phone: phone,
-      last_message: 'Start a conversation',
-      last_message_at: new Date().toISOString()
-    };
-    
-    setConversations(prev => [newConv, ...prev]);
-    setMessagesCache(prev => ({ ...prev, [tempId]: [] }));
-    setActiveChat({ type: 'convo', id: tempId });
-    setNewChatPhone('');
-    
-    pushToast(`Starting conversation with ${phone}...`);
-    
-    // Focus on message input
-    setTimeout(() => {
-      const input = document.querySelector('.composer input');
-      if (input) input.focus();
-    }, 100);
-  }, [conversations, openConversation]);
-
-  // --- Create group ---
-  const createGroup = useCallback(() => {
-    if (!newGroupName.trim()) {
-      pushToast('Please enter a group name');
-      return;
-    }
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      pushToast('WebSocket not connected');
-      return;
-    }
-
-    const members = newGroupMembers.split(',').map(p => p.trim()).filter(p => p);
-    ws.send(JSON.stringify({
-      event: 'create-room',
-      data: {
-        sender_phone: getMyPhone(),
-        group_name: newGroupName.trim(),
-        participants: members,
-        tempid: 'room_' + Date.now()
-      }
-    }));
-
-    setShowNewGroup(false);
-    setNewGroupName('');
-    setNewGroupMembers('');
-    pushToast('Creating group...');
-  }, [newGroupName, newGroupMembers]);
-
-  // --- Add member to group ---
-  const addMember = useCallback((groupId, phone) => {
-    if (!phone) {
-      pushToast('Please enter a phone number');
-      return;
-    }
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      pushToast('WebSocket not connected');
-      return;
-    }
-    ws.send(JSON.stringify({
-      event: 'addtoroom',
-      data: {
-        roomId: groupId,
-        receiver_phone: phone,
-        sender_phone: getMyPhone()
-      }
-    }));
-    pushToast(`Adding ${phone}...`);
-  }, []);
-
-  // --- Leave group ---
-  const leaveGroup = useCallback((groupId) => {
-    if (!confirm('Are you sure you want to leave this group?')) return;
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      pushToast('WebSocket not connected');
-      return;
-    }
-    ws.send(JSON.stringify({
-      event: 'leaveroom',
-      data: {
-        sender_phone: getMyPhone(),
-        roomId: groupId
-      }
-    }));
-  }, []);
-
-  // --- Delete group ---
-  const deleteGroup = useCallback((groupId) => {
-    if (!confirm('Delete this group permanently? This action cannot be undone.')) return;
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      pushToast('WebSocket not connected');
-      return;
-    }
-    ws.send(JSON.stringify({
-      event: 'delete-group',
-      data: { groupId }
-    }));
-    pushToast('Deleting group...');
-  }, []);
-
-  // --- Mark message as seen ---
-  const markSeen = useCallback((messageId, otherPhone) => {
-    if (!messageId || !otherPhone) return;
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    
-    ws.send(JSON.stringify({
-      event: 'seen',
-      data: { 
-        messageId: messageId, 
-        rec_phone: otherPhone 
-      }
-    }));
-  }, []);
-
-  // --- Login ---
-  const handleLogin = useCallback(async (phone, password) => {
-    setAuthError('');
-    setIsLoading(true);
-    try {
-      const data = await login(phone, password);
-      if (data && data.token) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('myPhone', phone);
-        localStorage.setItem('myName', data.name || phone);
-        setMe({ phone, name: data.name || phone });
-        // Let WebSocket connect after login
-        setTimeout(() => connectWebSocket(), 300);
-        pushToast('Login successful!');
-      } else {
-        setAuthError(data?.message || data?.raw || 'Login failed');
-      }
-    } catch (error) {
-      setAuthError('Network error: ' + error.message);
-    }
-    setIsLoading(false);
-  }, [connectWebSocket]);
-
-  // --- Signup ---
-  const handleSignup = useCallback(async (phone, password, name) => {
-    setAuthError('');
-    setIsLoading(true);
-    try {
-      const data = await signup(phone, password, name);
-      if (data && data.message) {
-        pushToast('Account created! Please login.');
-        setScreen('login');
-      } else {
-        setAuthError(data?.error || data?.message || 'Signup failed');
-      }
-    } catch (error) {
-      setAuthError('Network error: ' + error.message);
-    }
-    setIsLoading(false);
-  }, []);
-
-  // --- Logout ---
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('myPhone');
-    localStorage.removeItem('myName');
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (reconnectTimeout.current) {
-      clearTimeout(reconnectTimeout.current);
-      reconnectTimeout.current = null;
-    }
-    setMe(null);
-    setActiveChat(null);
-    setConversations([]);
-    setMessagesCache({});
-    setGroupMessagesCache({});
-    setGroups([]);
-    pushToast('Logged out');
-  }, []);
-
-  // --- Check existing session on mount ---
-  useEffect(() => {
-    const token = getToken();
-    const phone = getMyPhone();
-    const name = getMyName();
-    if (token && phone) {
-      setMe({ phone, name: name || phone });
-      // Connect WebSocket after a small delay
-      setTimeout(() => connectWebSocket(), 500);
-    }
-    
-    return () => {
-      if (reconnectTimeout.current) {
-        clearTimeout(reconnectTimeout.current);
-      }
-    };
-  }, []);
-
-  // --- Auto-scroll to bottom when messages change ---
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messagesCache, groupMessagesCache, activeChat]);
-
-  // ============================================================
-  // RENDER: AUTH
-  // ============================================================
-  if (!me) {
-    return (
-      <div className="auth-wrap">
-        <div className="auth-card">
-          <p className="auth-word display">Wire</p>
-          <p className="auth-sub">Phone-number messaging with real backend.</p>
-          {authError && <div className="auth-error">{authError}</div>}
-          {screen === 'login' ? (
-            <LoginForm 
-              onSubmit={handleLogin} 
-              isLoading={isLoading} 
-            />
-          ) : (
-            <SignupForm 
-              onSubmit={handleSignup} 
-              isLoading={isLoading} 
-            />
-          )}
-          <p className="switch-line">
-            {screen === 'login' ? (
-              <>New here? <a onClick={() => { setScreen('signup'); setAuthError(''); }}>Create an account</a></>
-            ) : (
-              <>Already registered? <a onClick={() => { setScreen('login'); setAuthError(''); }}>Log in</a></>
-            )}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================================
-  // RENDER: MAIN
-  // ============================================================
-  const myConvos = conversations.filter(c => 
-    c && (c.user1_phone === getMyPhone() || c.user2_phone === getMyPhone())
-  );
-  const myGroups = groups.filter(g => 
-    g && g.participants && g.participants.includes(getMyPhone())
-  );
-
-  let activeConvo = null, activeGroup = null;
-  let activeMsgs = [];
-  
-  if (activeChat?.type === 'convo') {
-    activeConvo = conversations.find(c => c && c.id === activeChat.id);
-    activeMsgs = messagesCache[activeChat.id] || [];
-  } else if (activeChat?.type === 'group') {
-    activeGroup = groups.find(g => g && g.id === activeChat.id);
-    activeMsgs = groupMessagesCache[activeChat.id] || [];
-  }
-
-  const getOtherPhone = (conv) => {
-    if (!conv) return '';
-    const myPhone = getMyPhone();
-    if (conv.user1_phone === myPhone) return conv.user2_phone;
-    return conv.user1_phone;
-  };
-
-  const getOtherName = (conv) => {
-    if (!conv) return 'Unknown';
-    return conv.other_user_name || conv.other_user_phone || 'Unknown';
-  };
-
-  const isTempConv = activeChat && activeChat.type === 'convo' && 
-    typeof activeChat.id === 'string' && activeChat.id.startsWith('temp_');
-
-  return (
-    <div className="shell">
-      <div className="sidebar">
-        <div className="side-head">
-          <div className="side-head-row">
-            <div className="brand"><span className="dot"></span><span className="display">Wire</span></div>
-            <button className="logout" onClick={handleLogout}>Log out</button>
-          </div>
-          <div className="me">{me.name || me.phone} · {me.phone}</div>
-        </div>
-        <div style={{padding:"12px 18px 0 18px"}}>
-          <div className="tabs">
-            <div className={"tab" + (activeTab === "chats" ? " active" : "")} onClick={() => setActiveTab("chats")}>Chats</div>
-            <div className={"tab" + (activeTab === "groups" ? " active" : "")} onClick={() => setActiveTab("groups")}>Groups</div>
-          </div>
-        </div>
-
-        {activeTab === "chats" ? (
-          <div className="new-row" style={{marginTop:12}}>
-            <input
-              placeholder="Start chat by phone number"
-              value={newChatPhone}
-              onChange={e => setNewChatPhone(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && startConversation(newChatPhone.trim())}
-            />
-            <button onClick={() => startConversation(newChatPhone.trim())}>Start</button>
-          </div>
-        ) : (
-          <div className="new-row" style={{marginTop:12}}>
-            <button style={{flex:1}} onClick={() => setShowNewGroup(true)}>+ New group</button>
-          </div>
-        )}
-
-        <div className="list">
-          {activeTab === "chats" && (
-            myConvos.length === 0 ? (
-              <div className="empty-list">No conversations yet. Start one above.</div>
-            ) : myConvos.map(c => {
-              if (!c) return null;
-              const otherPhone = getOtherPhone(c);
-              const otherName = getOtherName(c);
-              const msgs = messagesCache[c.id] || [];
-              const last = msgs[msgs.length - 1];
-              const isActive = activeChat?.type === "convo" && activeChat.id === c.id;
-              const isTemp = c.id && c.id.startsWith('temp_');
-              return (
-                <div key={c.id}
-                     className={"row-item" + (isActive ? " active" : "")}
-                     onClick={() => {
-                       if (isTemp) {
-                         setActiveChat({ type: 'convo', id: c.id });
-                         setNewChatPhone('');
-                       } else {
-                         openConversation(c.id, 'convo');
-                       }
-                     }}>
-                  <div className="avatar">{initials(otherName)}</div>
-                  <div className="row-text">
-                    <div className="row-name">
-                      <span>{otherName} {isTemp && <span style={{fontSize:10, color:'var(--amber)'}}>new</span>}</span>
-                      <span className="row-time">{last ? fmtTime(last.created_at) : ""}</span>
-                    </div>
-                    <div className="row-preview">
-                      {last ? (last.sender_phone === getMyPhone() ? "You: " : "") + (last.content || '') : "Say hello 👋"}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-
-          {activeTab === "groups" && (
-            myGroups.length === 0 ? (
-              <div className="empty-list">No groups yet. Create one to get started.</div>
-            ) : myGroups.map(g => {
-              if (!g) return null;
-              const msgs = groupMessagesCache[g.id] || [];
-              const last = msgs[msgs.length - 1];
-              const isActive = activeChat?.type === "group" && activeChat.id === g.id;
-              return (
-                <div key={g.id}
-                     className={"row-item" + (isActive ? " active" : "")}
-                     onClick={() => openConversation(g.id, 'group')}>
-                  <div className="avatar group">{initials(g.group_name || 'Group')}</div>
-                  <div className="row-text">
-                    <div className="row-name">
-                      <span>{g.group_name || 'Group'}</span>
-                      <span className="row-time">{last ? fmtTime(last.created_at) : ""}</span>
-                    </div>
-                    <div className="row-preview">
-                      {last ? (last.sender_phone === getMyPhone() ? "You: " : (last.sender_name || last.sender_phone) + ": ") + (last.content || '') : `${g.participants ? g.participants.length : 0} members`}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {activeChat && (activeConvo || activeGroup) ? (
-        <div className="chat-pane">
-          <div className="chat-head">
-            <div className="chat-head-left">
-              <div className={"avatar" + (activeGroup ? " group" : "")}>
-                {initials(activeGroup ? (activeGroup.group_name || 'Group') : getOtherName(activeConvo))}
-              </div>
-              <div>
-                <div className="chat-head-name">
-                  {activeGroup ? (activeGroup.group_name || 'Group') : getOtherName(activeConvo)}
-                  {isTempConv && <span style={{fontSize:12, color:'var(--amber)', marginLeft:8}}>new</span>}
-                </div>
-                <div className="chat-head-sub">
-                  {activeGroup
-                    ? `${activeGroup.participants ? activeGroup.participants.length : 0} members${activeGroup.admin_phone === getMyPhone() ? " · you're admin" : ""}`
-                    : isTempConv ? "Send a message to start the conversation" : "online"}
-                </div>
-              </div>
-            </div>
-            <div className="head-actions">
-              {activeGroup && <button className="icon-btn" onClick={() => setShowMembers(true)}>Members</button>}
-              {activeGroup && activeGroup.admin_phone === getMyPhone() && (
-                <button className="icon-btn danger" onClick={() => deleteGroup(activeGroup.id)}>Delete</button>
-              )}
-              {activeGroup && <button className="icon-btn danger" onClick={() => leaveGroup(activeGroup.id)}>Leave</button>}
-            </div>
-          </div>
-
-          <div className="messages">
-            <div className="system-line">
-              {activeGroup ? `You are in "${activeGroup.group_name || 'Group'}"` : isTempConv ? "Say hello to start the conversation!" : "Start of conversation"}
-            </div>
-            {activeMsgs && activeMsgs.map(m => {
-              if (!m) return null;
-              const isMine = m.sender_phone === getMyPhone();
-              const messageId = m.id || m.tempId || 'msg_' + Date.now();
-              return (
-                <div key={messageId} className={"bubble-row" + (isMine ? " mine" : "")}>
-                  <div className={"bubble" + (isMine ? " mine" : " theirs")}>
-                    {activeGroup && !isMine && m.sender_name && (
-                      <div className="sender-tag">{m.sender_name}</div>
-                    )}
-                    {m.content}
-                    <div className="meta">
-                      <span>{fmtTime(m.created_at)}</span>
-                      {isMine && !activeGroup && (
-                        <span className="status-icon" style={{fontSize: '12px'}}>
-                          {m.status === 'seen' ? '✓✓' : m.status === 'delivered' ? '✓✓' : m.status === 'sending' ? '◌' : '✓'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {typingFrom && (activeConvo?.user1_phone === typingFrom || activeConvo?.user2_phone === typingFrom || (activeGroup && activeGroup.participants && activeGroup.participants.includes(typingFrom))) && (
-            <div className="typing-row">{typingFrom} is typing…</div>
-          )}
-
-          <div className="composer">
-            <input
-              placeholder={activeGroup ? "Message the group" : isTempConv ? "Type your first message..." : "Type a message"}
-              value={draft}
-              onChange={e => {
-                setDraft(e.target.value);
-                const ws = wsRef.current;
-                if (ws && ws.readyState === WebSocket.OPEN && e.target.value.trim()) {
-                  let target = null;
-                  if (activeGroup) {
-                    target = activeGroup.id;
-                  } else if (activeConvo) {
-                    target = getOtherPhone(activeConvo);
-                  }
-                  if (target) {
-                    ws.send(JSON.stringify({
-                      event: 'typing',
-                      data: {
-                        sender_phone: getMyPhone(),
-                        reciever_phonenum: target
-                      }
-                    }));
-                  }
-                }
-              }}
-              onKeyDown={e => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  if (activeGroup) {
-                    sendGroupMessage(draft);
-                  } else {
-                    sendDirectMessage(draft);
-                  }
-                }
-              }}
-            />
-            <button
-              className="send-btn"
-              disabled={!draft.trim()}
-              onClick={() => {
-                if (activeGroup) {
-                  sendGroupMessage(draft);
-                } else {
-                  sendDirectMessage(draft);
-                }
-              }}
-            >➤</button>
-          </div>
-        </div>
-      ) : (
-        <div className="placeholder-pane">
-          <p className="display">Pick a conversation</p>
-          <p style={{maxWidth:320, fontSize:13.5}}>Choose a chat or group on the left, or start a new one.</p>
-        </div>
-      )}
-
-      {/* New Group Modal */}
-      {showNewGroup && (
-        <div className="overlay" onClick={() => setShowNewGroup(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>New group</h3>
-            <p className="modal-sub">You'll be the admin. You can add members after creation.</p>
-            <div className="modal-row">
-              <input 
-                placeholder="Group name" 
-                value={newGroupName} 
-                onChange={e => setNewGroupName(e.target.value)}
-                style={{width:"100%", padding:"10px 12px", borderRadius:8, border:"1px solid var(--line)", fontSize:14}} 
-              />
-            </div>
-            <div className="modal-row">
-              <input 
-                placeholder="Member phone numbers (comma separated)" 
-                value={newGroupMembers} 
-                onChange={e => setNewGroupMembers(e.target.value)}
-                style={{width:"100%", padding:"10px 12px", borderRadius:8, border:"1px solid var(--line)", fontSize:14}} 
-              />
-            </div>
-            <div className="modal-actions">
-              <button className="btn secondary" onClick={() => setShowNewGroup(false)} style={{flex:1}}>Cancel</button>
-              <button className="btn" onClick={createGroup} style={{flex:1}}>Create</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Members Modal */}
-      {showMembers && activeGroup && (
-        <div className="overlay" onClick={() => setShowMembers(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>{activeGroup.group_name || 'Group'}</h3>
-            <p className="modal-sub">{activeGroup.participants ? activeGroup.participants.length : 0} members</p>
-            <div className="member-list">
-              {activeGroup.participants && activeGroup.participants.map(p => (
-                <div className="member-row" key={p}>
-                  <span>
-                    {p === getMyPhone() ? 'You' : p}
-                    {activeGroup.admin_phone === p && <span className="tag">ADMIN</span>}
-                  </span>
-                  {activeGroup.admin_phone === getMyPhone() && p !== getMyPhone() && (
-                    <button onClick={() => {
-                      const ws = wsRef.current;
-                      if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({
-                          event: 'removeuser',
-                          data: {
-                            roomId: activeGroup.id,
-                            receiver_phone: p,
-                            sender_phone: getMyPhone()
-                          }
-                        }));
-                        pushToast(`Removing ${p}...`);
-                      }
-                    }}>Remove</button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {activeGroup.admin_phone === getMyPhone() && (
-              <div className="modal-row" style={{display:"flex", gap:8, marginTop:14}}>
-                <input 
-                  placeholder="Add member by phone" 
-                  id="addMemberInput"
-                  style={{flex:1, padding:"9px 10px", borderRadius:7, border:"1px solid var(--line)", fontSize:13}} 
-                />
-                <button className="icon-btn" onClick={() => {
-                  const input = document.getElementById('addMemberInput');
-                  if (input) {
-                    addMember(activeGroup.id, input.value.trim());
-                    input.value = '';
-                  }
-                }}>Add</button>
-              </div>
-            )}
-            <div className="modal-actions">
-              <button className="btn secondary" onClick={() => setShowMembers(false)} style={{flex:1}}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="toast-stack">
-        {toasts.map(t => <div key={t.id} className="toast">{t.text}</div>)}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// AUTH COMPONENTS
-// ============================================================
-function LoginForm({ onSubmit, isLoading }) {
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  return (
-    <div>
-      <div className="field">
-        <label>Phone number</label>
-        <input 
-          value={phone} 
-          onChange={e => setPhone(e.target.value)} 
-          placeholder="+919876543210" 
-        />
-      </div>
-      <div className="field">
-        <label>Password</label>
-        <input 
-          type="password" 
-          value={password} 
-          onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && onSubmit(phone.trim(), password)} 
-          placeholder="••••••" 
-        />
-      </div>
-      <button className="btn" onClick={() => onSubmit(phone.trim(), password)} disabled={isLoading}>
-        {isLoading ? 'Logging in...' : 'Log in'}
-      </button>
-    </div>
-  );
-}
-
-function SignupForm({ onSubmit, isLoading }) {
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  return (
-    <div>
-      <div className="field">
-        <label>Full name</label>
-        <input 
-          value={name} 
-          onChange={e => setName(e.target.value)} 
-          placeholder="Your name" 
-        />
-      </div>
-      <div className="field">
-        <label>Phone number</label>
-        <input 
-          value={phone} 
-          onChange={e => setPhone(e.target.value)} 
-          placeholder="+919876543210" 
-        />
-      </div>
-      <div className="field">
-        <label>Password</label>
-        <input 
-          type="password" 
-          value={password} 
-          onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && onSubmit(phone.trim(), password, name.trim())} 
-          placeholder="Choose a password" 
-        />
-      </div>
-      <button className="btn" onClick={() => onSubmit(phone.trim(), password, name.trim())} disabled={isLoading}>
-        {isLoading ? 'Creating...' : 'Create account'}
-      </button>
-    </div>
-  );
-}
-
-// ============================================================
-// RENDER
-// ============================================================
-ReactDOM.createRoot(document.getElementById("app")).render(<App />);
+function initials(s){ if(!s) return '?'; const parts = String(s).replace(/[^a-zA-Z0-9 ]/g,' ').trim().split(/\s+/); if(parts.length===1) return parts[0].slice(0,2).toUpperCase(); return (parts[0][0]+parts[1][0]).toUpperCase(); }
+function truncate(s,n){ if(!s) return ''; s=String(s); return s.length>n ? s.slice(0,n-1)+'…' : s; }
+function formatTime(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+function formatClock(d){ return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}); }
+function safeStringify(o){ try{ return typeof o==='string' ? o : JSON.stringify(o, (k,v)=> v instanceof Set ? Array.from(v) : v, 2); }catch(e){ return String(o); } }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s); }
+function escapeAttrText(s){ return escapeHtml(s); }
+
+/* ---------------------------- boot ---------------------------- */
+render();
 </script>
 </body>
 </html>

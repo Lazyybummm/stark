@@ -16,38 +16,6 @@ app.get("/health",(req,res)=>{
     pgclient.query("")
 })
 
-app.post('/query', async (req, res) => {
-    try {
-        console.log("The route is hit");
-        
-        // ✅ First, drop the table if it exists (to avoid conflicts)
-        await pgclient.query(`DROP TABLE IF EXISTS users;`);
-        
-        // ✅ Then create the table with all columns
-        const query_response = await pgclient.query(`
-            CREATE TABLE users (
-                id SERIAL PRIMARY KEY,
-                phone_number VARCHAR(15) UNIQUE NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-        
-        return res.json({
-            success: true,
-            rowCount: query_response.rowCount
-        });
-    } catch (error) {
-        console.error('Error:', error.message);
-        return res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-//authentication routes 
 
 app.post("/signup",async (req,res)=>{
     try{
@@ -73,7 +41,7 @@ app.post("/signup",async (req,res)=>{
     
 })
 
-app.post("/login",async (req,res)=>{//revise about jwt and bcrypt
+app.post("/login",async (req,res)=>{
     try{
     const {phone,password}=req.body;
     const response=await pgclient.query("SELECT * FROM users WHERE phone_number =$1",[phone])
@@ -117,7 +85,7 @@ app.post('/myconversation',async (req,res)=>{
             [decode.phone]
         );
         if(result.rowCount!=0){
-            return res.send(result.rows)//on the frontend render accordingly
+            return res.send(result.rows)
         }
         return res.send("you dont have any active conversations present!")
         
@@ -128,7 +96,7 @@ app.post('/myconversation',async (req,res)=>{
 })
 
 
-app.post('/getmessages', async (req, res) => {//fetching the messages based on a conversation id 
+app.post('/getmessages', async (req, res) => {
     try {
         const token = req.headers.token;
         console.log("Token received:", token);
@@ -140,7 +108,7 @@ app.post('/getmessages', async (req, res) => {//fetching the messages based on a
             });
         }
 
-        const decode = jwt.verify(token, process.env.JWT_SECRET_KEY);//this should be in a middleware
+        const decode = jwt.verify(token, process.env.JWT_SECRET_KEY);
         const { conversationId } = req.body;
 
         if (!conversationId) {
@@ -191,10 +159,7 @@ app.post('/getmessages', async (req, res) => {//fetching the messages based on a
         });
     }
 });
-//->not wrtten by me 
-// ============================================================
-// ✅ NEW: GET GROUP MESSAGES
-// ============================================================
+
 app.post('/getgroupmessages', async (req, res) => {
     try {
         const token = req.headers.token;
@@ -219,7 +184,6 @@ app.post('/getgroupmessages', async (req, res) => {
 
         console.log("Fetching group messages for group:", groupId);
 
-        // ✅ Check if user is part of the group
         const participantCheck = await pgclient.query(
             `SELECT * FROM group_participants 
              WHERE group_id = $1 AND phone_number = $2`,
@@ -233,19 +197,18 @@ app.post('/getgroupmessages', async (req, res) => {
             });
         }
 
-        // ✅ Fetch group messages with sender names
         const result = await pgclient.query(
             `SELECT 
-                gm.id,
-                gm.group_id,
-                gm.sender_phone,
-                gm.content,
-                gm.created_at,
+                m.id,
+                m.group_id,
+                m.sender_phone,
+                m.content,
+                m.created_at,
                 u.name as sender_name
-             FROM group_messages gm
-             JOIN users u ON gm.sender_phone = u.phone_number
-             WHERE gm.group_id = $1
-             ORDER BY gm.created_at ASC`,
+             FROM messages m
+             JOIN users u ON m.sender_phone = u.phone_number
+             WHERE m.group_id = $1
+             ORDER BY m.created_at ASC`,
             [groupId]
         );
 
