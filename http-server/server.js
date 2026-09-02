@@ -202,8 +202,19 @@ app.post('/getgroupmessages', async (req, res) => {
                 m.id,
                 m.group_id,
                 m.sender_phone,
+                m.receiver_phone,
                 m.content,
+                m.status,
+                m.delivered_at,
+                m.seen_at,
+                m.is_pinned,
+                m.pinned_at,
+                m.pinned_by,
+                m.visibility,
+                m.deleted_by,
+                m.deleted_at,
                 m.created_at,
+                m.updated_at,
                 u.name as sender_name
              FROM messages m
              JOIN users u ON m.sender_phone = u.phone_number

@@ -528,6 +528,25 @@ wss.on("connection", async (socket) => {
                 }));
             }
         }
+        else if(topic=='active-status'){
+            //just check if the recipient is connected to the wss
+            const rec_phone=payload.data.rec_phone;
+            const sock=mappings.get(rec_phone);
+            if(sock && sock.readyState==WebSocket.OPEN){//lookup what's this and why just cjecking sock would be a issue 
+                    socket.send(JSON.stringify({
+                        status:'online',
+                        event:'reciever status'
+                    }))
+                    return;
+            }
+            else{
+                socket.send(JSON.stringify({
+                    status:'offline',
+                    event:'reciever status'
+                }))
+            }
+           
+        }
     });
 });
 

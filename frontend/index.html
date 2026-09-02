@@ -21,7 +21,6 @@
     --accent-ink:#1A1300;
     --good:#5FAE84;
     --danger:#D9614F;
-    --pending:#7A8890;
     --radius-s:4px;
     --radius-m:8px;
     --mono:'IBM Plex Mono', ui-monospace, monospace;
@@ -37,14 +36,13 @@
   }
   ::selection{background:var(--accent); color:var(--accent-ink);}
   button{font-family:inherit; font-size:inherit; cursor:pointer;}
-  input, textarea, select{font-family:inherit; font-size:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-s); padding:8px 10px; outline:none;}
+  input, textarea, select{font-family:inherit; font-size:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-s); padding:8px 10px; outline:none; transition:border-color .12s ease;}
   input:focus, textarea:focus, select:focus{border-color:var(--accent);}
   input::placeholder, textarea::placeholder{color:var(--text-faint);}
   a{color:var(--accent);}
   .mono{font-family:var(--mono);}
   .hidden{display:none !important;}
 
-  /* ---------- shell ---------- */
   .shell{ display:flex; flex-direction:column; height:100vh; }
 
   .topbar{
@@ -57,44 +55,46 @@
   .brand-sub{ color:var(--text-faint); font-size:12px; }
   .topbar-spacer{ flex:1; }
   .conn{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--text-dim); }
-  .conn-dot{ width:7px; height:7px; border-radius:50%; background:var(--text-faint); flex-shrink:0; }
+  .conn-dot{ width:7px; height:7px; border-radius:50%; background:var(--text-faint); flex-shrink:0; transition:background .2s ease, box-shadow .2s ease; }
   .conn-dot.up{ background:var(--good); box-shadow:0 0 0 3px rgba(95,174,132,0.18); }
   .conn-dot.down{ background:var(--danger); }
+  .conn-dot.connecting{ background:var(--accent); animation:pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
   .who{ font-size:12.5px; color:var(--text-dim); }
   .who b{ color:var(--text); font-weight:600; }
   .btn{
     background:var(--panel-2); border:1px solid var(--border); color:var(--text);
     padding:7px 13px; border-radius:var(--radius-s); font-weight:500; font-size:13px;
-    transition:border-color .12s ease;
+    transition:border-color .12s ease, background .12s ease, filter .12s ease, opacity .12s ease;
   }
   .btn:hover{ border-color:var(--text-faint); }
   .btn.primary{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; }
   .btn.primary:hover{ filter:brightness(1.06); }
   .btn.danger{ color:var(--danger); }
+  .btn.danger.solid{ background:var(--danger); border-color:var(--danger); color:#2A0C08; }
+  .btn.danger.solid:hover{ filter:brightness(1.08); }
   .btn.ghost{ background:transparent; border-color:transparent; color:var(--text-dim); padding:6px 10px; }
   .btn.ghost:hover{ color:var(--text); background:var(--panel-2); }
   .btn.small{ padding:5px 10px; font-size:12px; }
   .btn:disabled{ opacity:.45; cursor:not-allowed; }
+  .hamburger{ display:none; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:var(--radius-s); width:34px; height:34px; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .hamburger:hover{ border-color:var(--text-faint); }
 
-  .body{ flex:1; display:flex; min-height:0; }
+  .body{ flex:1; display:flex; min-height:0; position:relative; }
 
-  /* ---------- sidebar ---------- */
   .sidebar{
     width:290px; flex-shrink:0; border-right:1px solid var(--border);
     background:var(--panel); display:flex; flex-direction:column; min-height:0;
   }
-  .sidebar-section{ padding:14px 14px 0 14px; }
   .field-label{ font-size:11.5px; color:var(--text-faint); margin-bottom:5px; display:block; }
   .field{ margin-bottom:10px; }
   .field input{ width:100%; }
-  .row{ display:flex; gap:8px; }
-  .row > *{ flex:1; }
 
   .tabs{ display:flex; gap:2px; padding:12px 14px 0 14px; }
   .tab{
     flex:1; text-align:center; padding:8px 4px; font-size:12.5px; color:var(--text-dim);
     background:transparent; border:1px solid var(--border); border-bottom:none;
-    border-radius:var(--radius-s) var(--radius-s) 0 0;
+    border-radius:var(--radius-s) var(--radius-s) 0 0; transition:background .12s ease, color .12s ease;
   }
   .tab.active{ color:var(--text); background:var(--panel-2); }
 
@@ -102,20 +102,29 @@
   .list-empty{ padding:22px 16px; color:var(--text-faint); font-size:12.5px; line-height:1.6; }
   .item{
     display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer;
-    border-bottom:1px solid var(--border-soft);
+    border-bottom:1px solid var(--border-soft); transition:background .1s ease;
   }
   .item:hover{ background:var(--panel-2); }
   .item.active{ background:var(--panel-3); box-shadow:inset 2px 0 0 var(--accent); }
+
+  .avatar-wrap{ position:relative; flex-shrink:0; }
   .avatar{
     width:32px; height:32px; border-radius:50%; flex-shrink:0;
     background:var(--panel-3); border:1px solid var(--border);
     display:flex; align-items:center; justify-content:center;
     font-size:12px; font-weight:600; color:var(--text-dim);
   }
+  .presence-dot{
+    width:9px; height:9px; border-radius:50%; background:var(--text-faint);
+    border:2px solid var(--panel); position:absolute; right:-1px; bottom:-1px;
+    transition:background .2s ease;
+  }
+  .presence-dot.online{ background:var(--good); }
   .item-main{ min-width:0; flex:1; }
   .item-title{ font-size:13.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .item-sub{ font-size:11.5px; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:var(--mono); }
-  .item-badge{ width:7px; height:7px; border-radius:50%; background:var(--good); flex-shrink:0; }
+  .status-text{ font-size:11.5px; color:var(--text-faint); }
+  .status-text.online{ color:var(--good); font-family:var(--sans); }
 
   .newchat-form{ display:flex; gap:6px; padding:10px 14px; border-top:1px solid var(--border); }
   .newchat-form input{ flex:1; }
@@ -123,7 +132,6 @@
   .identity{ padding:12px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
   .identity .item-title{ font-size:14px; }
 
-  /* ---------- chat pane ---------- */
   .chat{ flex:1; display:flex; flex-direction:column; min-width:0; background:var(--bg); }
   .chat-empty{
     flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -141,20 +149,36 @@
   .chat-header-spacer{ flex:1; }
 
   .pin-bar{
-    display:flex; align-items:center; gap:10px; padding:8px 18px;
+    display:flex; flex-direction:column; padding:8px 18px;
     background:rgba(226,162,59,0.08); border-bottom:1px solid var(--border);
     font-size:12.5px; color:var(--text-dim); flex-shrink:0;
+    animation:slideDown .14s ease;
+    gap:4px;
   }
+  @keyframes slideDown{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
   .pin-bar b{ color:var(--accent); font-weight:600; }
   .pin-bar .pin-text{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pin-row{
+    display:flex; align-items:center; gap:10px;
+  }
+  .pin-row .pin-text{ font-size:12.5px; }
+  .pin-meta{ font-size:10.5px; color:var(--text-faint); flex-shrink:0; }
+  .pin-more{
+    color:var(--accent); cursor:pointer; font-size:11px; font-weight:600;
+    padding:2px 6px; border-radius:3px; background:rgba(226,162,59,0.1);
+    transition:background .1s ease;
+  }
+  .pin-more:hover{ background:rgba(226,162,59,0.18); }
+  .pin-divider{ border-top:1px solid var(--border-soft); margin:2px 0; }
+  .pin-icon{ margin-right:2px; }
 
-  .messages{ flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:3px; }
-  .msg-day{ text-align:center; color:var(--text-faint); font-size:11px; margin:14px 0 8px; }
-  .bubble-row{ display:flex; margin-bottom:2px; }
+  .messages{ flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:3px; scroll-behavior:smooth; }
+  .bubble-row{ display:flex; align-items:flex-end; margin-bottom:2px; position:relative; animation:bubbleIn .16s ease; }
   .bubble-row.me{ justify-content:flex-end; }
+  @keyframes bubbleIn{ from{opacity:0; transform:translateY(5px);} to{opacity:1; transform:translateY(0);} }
   .bubble{
     max-width:62%; padding:8px 12px; border-radius:12px; position:relative;
-    background:var(--panel-2); border:1px solid var(--border);
+    background:var(--panel-2); border:1px solid var(--border); transition:opacity .15s ease;
   }
   .bubble-row.me .bubble{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); border-bottom-right-radius:3px; }
   .bubble-row:not(.me) .bubble{ border-bottom-left-radius:3px; }
@@ -163,17 +187,38 @@
   .bubble-text{ font-size:13.5px; white-space:pre-wrap; word-break:break-word; }
   .bubble-meta{ display:flex; align-items:center; gap:5px; margin-top:3px; font-size:10.5px; color:var(--text-faint); }
   .bubble-row.me .bubble-meta{ color:rgba(26,19,0,0.6); }
-  .bubble.pending{ opacity:.65; }
+  .bubble.pending{ opacity:.6; }
+  .bubble.failed{ opacity:.85; box-shadow:0 0 0 1px var(--danger); }
   .bubble.pinned{ box-shadow:0 0 0 1px var(--accent); }
+  .bubble.deleted{ opacity:.5; font-style:italic; color:var(--text-faint); }
   .tick{ font-family:var(--mono); }
   .tick.seen{ color:var(--good); }
+  .tick.failed{ color:var(--danger); }
   .bubble-row.me .tick.seen{ color:#1A1300; font-weight:700; }
-  .bubble-actions{ display:flex; gap:4px; margin-top:4px; }
-  .bubble-actions button{
-    font-size:10px; background:transparent; border:none; color:var(--text-faint);
-    text-decoration:underline; padding:0;
+  .retry-link{ background:none; border:none; padding:0; margin-left:4px; color:inherit; text-decoration:underline; font-size:10.5px; cursor:pointer; }
+
+  .message-actions-wrapper{ position:relative; display:inline-flex; align-self:flex-end; margin:0 6px; flex-shrink:0; }
+  .menu-btn{
+    background:var(--panel-3); border:1px solid var(--border); color:var(--text-dim); font-size:14px;
+    width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    padding:0; cursor:pointer; line-height:1; transition:color .1s ease, border-color .1s ease;
   }
-  .bubble-row.me .bubble-actions button{ color:rgba(26,19,0,0.55); }
+  .menu-btn:hover{ color:var(--text); border-color:var(--text-faint); }
+
+  .action-menu{
+    position:absolute; right:0; top:100%; background:var(--panel-2); border:1px solid var(--border);
+    border-radius:var(--radius-s); padding:4px 0; min-width:150px; z-index:10;
+    box-shadow:0 4px 16px rgba(0,0,0,0.4); display:none; animation:menuIn .1s ease;
+  }
+  @keyframes menuIn{ from{opacity:0; transform:translateY(-3px);} to{opacity:1; transform:translateY(0);} }
+  .action-menu.open{ display:block; }
+  .action-menu button{
+    display:block; width:100%; padding:7px 14px; text-align:left;
+    background:transparent; border:none; color:var(--text); font-size:12px;
+    cursor:pointer;
+  }
+  .action-menu button:hover{ background:var(--panel-3); }
+  .action-menu button.danger{ color:var(--danger); }
 
   .typing-line{ padding:0 18px 6px; font-size:12px; color:var(--text-faint); font-style:italic; min-height:18px; flex-shrink:0; }
 
@@ -181,8 +226,7 @@
   .composer textarea{ flex:1; resize:none; height:38px; max-height:120px; padding-top:9px; }
   .composer .btn.primary{ height:38px; }
 
-  /* ---------- group settings drawer (inline panel) ---------- */
-  .group-panel{ border-bottom:1px solid var(--border); background:var(--panel); overflow:hidden; flex-shrink:0; }
+  .group-panel{ border-bottom:1px solid var(--border); background:var(--panel); overflow:hidden; flex-shrink:0; animation:slideDown .14s ease; }
   .group-panel-inner{ padding:14px 18px; display:flex; flex-wrap:wrap; gap:22px; }
   .gp-block{ min-width:220px; }
   .gp-block h4{ margin:0 0 8px; font-size:11.5px; text-transform:none; letter-spacing:0; color:var(--text-faint); font-weight:600; }
@@ -190,38 +234,16 @@
   .chip{
     display:flex; align-items:center; gap:6px; background:var(--panel-3); border:1px solid var(--border);
     padding:4px 6px 4px 10px; border-radius:20px; font-size:12px; font-family:var(--mono);
+    animation:chipIn .12s ease;
   }
+  @keyframes chipIn{ from{opacity:0; transform:scale(.9);} to{opacity:1; transform:scale(1);} }
   .chip.admin{ border-color:var(--accent); color:var(--accent); }
   .chip button{ background:transparent; border:none; color:var(--text-faint); font-size:14px; line-height:1; padding:0 2px; }
   .chip button:hover{ color:var(--danger); }
   .gp-form{ display:flex; gap:6px; }
   .gp-form input, .gp-form select{ flex:1; }
+  .hint{ font-size:11.5px; color:var(--text-faint); }
 
-  /* ---------- console ---------- */
-  .console{ width:380px; flex-shrink:0; border-left:1px solid var(--border); background:var(--panel); display:flex; flex-direction:column; min-height:0; }
-  .console-tabs{ display:flex; border-bottom:1px solid var(--border); }
-  .console-tab{ flex:1; padding:10px; text-align:center; font-size:12.5px; color:var(--text-dim); background:transparent; border:none; border-bottom:2px solid transparent; }
-  .console-tab.active{ color:var(--text); border-bottom-color:var(--accent); }
-  .log-list{ flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:6px; }
-  .log-empty{ padding:22px 16px; color:var(--text-faint); font-size:12.5px; }
-  .log-entry{ border:1px solid var(--border-soft); border-radius:var(--radius-s); background:var(--panel-2); overflow:hidden; }
-  .log-head{ display:flex; align-items:center; gap:8px; padding:7px 9px; cursor:pointer; }
-  .log-dir{ font-size:9.5px; font-weight:700; padding:2px 5px; border-radius:3px; letter-spacing:.03em; flex-shrink:0; }
-  .log-dir.out{ background:rgba(226,162,59,0.16); color:var(--accent); }
-  .log-dir.in{ background:rgba(95,174,132,0.16); color:var(--good); }
-  .log-dir.http{ background:rgba(147,163,171,0.16); color:var(--text-dim); }
-  .log-dir.err{ background:rgba(217,97,79,0.16); color:var(--danger); }
-  .log-label{ flex:1; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .log-time{ font-size:10px; color:var(--text-faint); font-family:var(--mono); flex-shrink:0; }
-  .log-body{ padding:0 9px 9px; }
-  .log-body pre{ margin:0; font-family:var(--mono); font-size:11px; color:var(--text-dim); white-space:pre-wrap; word-break:break-word; background:var(--panel); border:1px solid var(--border-soft); border-radius:3px; padding:8px; max-height:220px; overflow:auto; }
-
-  .raw-send{ padding:14px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; }
-  .raw-send textarea{ width:100%; height:160px; font-family:var(--mono); font-size:12px; }
-  .raw-send select{ width:100%; }
-  .hint{ font-size:11.5px; color:var(--text-faint); line-height:1.5; }
-
-  /* ---------- auth screen ---------- */
   .auth-wrap{ flex:1; display:flex; align-items:center; justify-content:center; padding:20px; }
   .auth-card{ width:100%; max-width:380px; }
   .auth-title{ font-family:var(--serif); font-size:26px; font-weight:600; margin:0 0 4px; }
@@ -234,7 +256,6 @@
   .config-toggle button{ background:none; border:none; color:var(--text-faint); text-decoration:underline; }
   .config-box{ margin-top:12px; padding:12px; border:1px solid var(--border); border-radius:var(--radius-m); background:var(--panel); }
 
-  /* toasts */
   .toasts{ position:fixed; bottom:18px; right:18px; display:flex; flex-direction:column; gap:8px; z-index:50; }
   .toast{
     background:var(--panel-3); border:1px solid var(--border); border-left:3px solid var(--good);
@@ -245,15 +266,37 @@
   .toast.info{ border-left-color:var(--text-faint); }
   @keyframes in{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
 
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(8,11,13,0.6); backdrop-filter:blur(2px);
+    display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;
+    animation:fadeIn .12s ease;
+  }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+  .modal-card{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-m);
+    width:100%; max-width:360px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    animation:modalIn .15s ease;
+  }
+  @keyframes modalIn{ from{opacity:0; transform:scale(.96) translateY(4px);} to{opacity:1; transform:scale(1) translateY(0);} }
+  .modal-title{ font-family:var(--serif); font-size:17px; font-weight:600; margin:0 0 8px; }
+  .modal-body{ font-size:13px; color:var(--text-dim); margin:0 0 18px; line-height:1.5; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; }
+
   ::-webkit-scrollbar{ width:9px; height:9px; }
   ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:5px; }
   ::-webkit-scrollbar-track{ background:transparent; }
 
-  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.001s !important; transition-duration:.001s !important; } }
+  .backdrop{ display:none; }
 
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.001s !important; transition-duration:.001s !important; } }
   @media (max-width: 900px){
-    .console{ position:fixed; right:0; top:0; bottom:0; z-index:40; box-shadow:-8px 0 24px rgba(0,0,0,0.4); }
-    .sidebar{ position:fixed; left:0; top:53px; bottom:0; z-index:40; box-shadow:8px 0 24px rgba(0,0,0,0.4); }
+    .hamburger{ display:flex; }
+    .sidebar{
+      position:fixed; left:0; top:53px; bottom:0; z-index:40; box-shadow:8px 0 24px rgba(0,0,0,0.4);
+      transform:translateX(-102%); transition:transform .18s ease;
+    }
+    .sidebar.open{ transform:translateX(0); }
+    .backdrop.open{ display:block; position:fixed; inset:53px 0 0 0; background:rgba(0,0,0,0.45); z-index:39; }
   }
 </style>
 </head>
@@ -263,43 +306,39 @@
 <div class="toasts" id="toasts"></div>
 
 <script>
-/* =========================================================================
-   RELAY — test console for the messages/groups HTTP + WebSocket backend.
-   Single-file, no build step. State lives in memory only (no storage APIs).
-   ========================================================================= */
-
-/* ---------------------------- state ---------------------------- */
 const state = {
   httpBase: 'http://localhost:8000',
   wsUrl: 'ws://localhost:8080',
   configOpen: false,
-  authTab: 'login',       // 'login' | 'signup'
+  authTab: 'login',
   authError: '',
   token: null, me: { phone:null, name:null, user_id:null },
-
-  ws: null, wsStatus: 'down',      // down | connecting | up
-
-  conversations: [],       // from /myconversation: {id,user1_phone,user2_phone,last_message_at}
-  dmMessagesByPhone: {},   // peerPhone -> [messages]
-  dmMeta: {},              // peerPhone -> { conversationId, name? }
-
-  groups: {},              // groupId -> {id, group_name, admin_phone, participants:Set, messages:[]}
-
-  activeChat: null,        // {type:'dm', phone} | {type:'group', id}
-  sidebarTab: 'chats',     // 'chats' | 'groups'
-  typingFrom: {},          // key(peer) -> timeout handle, for showing "typing..."
+  ws: null, wsStatus: 'down',
+  conversations: [],
+  dmMessagesByPhone: {},
+  dmMeta: {},
+  groups: {},
+  presence: {},
+  activeChat: null,
+  sidebarTab: 'chats',
+  sidebarOpen: false,
+  typingFrom: {},
   groupSettingsOpen: false,
-
-  consoleOpen: true,
-  consoleTab: 'log',       // 'log' | 'raw'
-  log: [],
-
   pendingSeq: 1,
+  openMenus: {},
+  modal: null,
+  stickToBottom: true,
+  pendingAdd: null,
+  pendingRemove: null,
+  pinDropdownOpen: false,
 };
+
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+let lastTypingSentAt = 0;
 
 function newTempId(prefix){ return prefix + '_' + (state.pendingSeq++) + '_' + Math.random().toString(36).slice(2,7); }
 
-/* ---------------------------- render root ---------------------------- */
 function render(){
   const app = document.getElementById('app');
   if(!state.token){
@@ -307,29 +346,56 @@ function render(){
     bindAuthScreen();
     return;
   }
-  app.innerHTML = `
-    ${renderTopbar()}
-    <div class="body">
-      ${renderSidebar()}
-      ${renderChatPane()}
-      ${state.consoleOpen ? renderConsole() : ''}
-    </div>
-  `;
-  bindTopbar(); bindSidebar(); bindChatPane(); if(state.consoleOpen) bindConsole();
+  app.innerHTML = renderTopbar()
+    + `<div class="body">${renderSidebar()}<div class="backdrop ${state.sidebarOpen?'open':''}" id="sidebarBackdrop"></div>${renderChatPane()}</div>`
+    + renderModal();
+  bindTopbar(); bindSidebar(); bindChatPane(); bindModal();
 }
 
-/* ============================== AUTH ============================== */
+function askConfirm({title, body, confirmLabel='Confirm', danger=false, onConfirm}){
+  state.modal = {title, body, confirmLabel, danger, onConfirm};
+  render();
+}
+function closeModal(){ state.modal = null; render(); }
+function renderModal(){
+  if(!state.modal) return '';
+  const m = state.modal;
+  return `<div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal-card">
+      <h3 class="modal-title">${escapeHtml(m.title)}</h3>
+      <p class="modal-body">${escapeHtml(m.body)}</p>
+      <div class="modal-actions">
+        <button class="btn ghost small" id="modalCancel">Cancel</button>
+        <button class="btn small ${m.danger ? 'danger solid' : 'primary'}" id="modalConfirm">${escapeHtml(m.confirmLabel)}</button>
+      </div>
+    </div>
+  </div>`;
+}
+function bindModal(){
+  document.getElementById('modalBackdrop')?.addEventListener('click', (e)=>{ if(e.target.id==='modalBackdrop') closeModal(); });
+  document.getElementById('modalCancel')?.addEventListener('click', closeModal);
+  document.getElementById('modalConfirm')?.addEventListener('click', ()=>{
+    const fn = state.modal?.onConfirm;
+    closeModal();
+    if(fn) fn();
+  });
+  if(state.modal){
+    const onKey = (e)=>{ if(e.key==='Escape'){ closeModal(); document.removeEventListener('keydown', onKey); } };
+    document.addEventListener('keydown', onKey);
+  }
+}
+
 function renderAuthScreen(){
   return `
   <div class="topbar">
     <div class="brand"><span class="brand-mark">Relay</span><span class="brand-sub">backend console</span></div>
     <div class="topbar-spacer"></div>
-    <div class="conn"><span class="conn-dot ${state.wsStatus==='up'?'up':(state.wsStatus==='connecting'?'':'down')}"></span>${escapeHtml(state.httpBase)}</div>
+    <div class="conn"><span class="conn-dot ${state.wsStatus==='up'?'up':(state.wsStatus==='connecting'?'connecting':'down')}"></span>${escapeHtml(state.httpBase)}</div>
   </div>
   <div class="auth-wrap">
     <div class="auth-card">
       <h1 class="auth-title">Sign in to Relay</h1>
-      <p class="auth-sub">Talks directly to your Express + WebSocket backend. Nothing here is stored beyond this browser tab.</p>
+      <p class="auth-sub">Talks directly to your Express + WebSocket backend.</p>
       <div class="auth-tabs">
         <button class="auth-tab ${state.authTab==='login'?'active':''}" data-tab="login">Log in</button>
         <button class="auth-tab ${state.authTab==='signup'?'active':''}" data-tab="signup">Sign up</button>
@@ -337,16 +403,16 @@ function renderAuthScreen(){
       ${state.authError ? `<div class="auth-error">${escapeHtml(state.authError)}</div>` : ''}
       ${state.authTab==='login' ? `
         <form id="loginForm">
-          <div class="field"><span class="field-label">Phone number</span><input class="mono" name="phone" placeholder="+91 98xxxxxx" required></div>
+          <div class="field"><span class="field-label">Phone number</span><input class="mono" name="phone" placeholder="+91 98xxxxxx" value="${escapeAttr(state._prefillPhone||'')}" required></div>
           <div class="field"><span class="field-label">Password</span><input type="password" name="password" placeholder="••••••••" required></div>
-          <button class="btn primary" style="width:100%" type="submit">Log in</button>
+          <button class="btn primary" style="width:100%" type="submit" id="loginSubmit">Log in</button>
         </form>
       ` : `
         <form id="signupForm">
           <div class="field"><span class="field-label">Name</span><input name="name" placeholder="Ada Lovelace" required></div>
           <div class="field"><span class="field-label">Phone number</span><input class="mono" name="phone" placeholder="+91 98xxxxxx" required></div>
           <div class="field"><span class="field-label">Password</span><input type="password" name="password" placeholder="••••••••" required></div>
-          <button class="btn primary" style="width:100%" type="submit">Create account</button>
+          <button class="btn primary" style="width:100%" type="submit" id="signupSubmit">Create account</button>
         </form>
       `}
       <div class="config-toggle"><button id="toggleConfig">${state.configOpen?'Hide':'Server settings'}</button></div>
@@ -362,21 +428,21 @@ function renderAuthScreen(){
 
 function bindAuthScreen(){
   document.querySelectorAll('.auth-tab').forEach(t=>t.addEventListener('click', ()=>{ state.authTab = t.dataset.tab; state.authError=''; render(); }));
-  const tc = document.getElementById('toggleConfig');
-  if(tc) tc.addEventListener('click', ()=>{ state.configOpen = !state.configOpen; render(); });
-  const ch = document.getElementById('cfgHttp'); if(ch) ch.addEventListener('change', e=> state.httpBase = e.target.value.trim());
-  const cw = document.getElementById('cfgWs'); if(cw) cw.addEventListener('change', e=> state.wsUrl = e.target.value.trim());
-
-  const lf = document.getElementById('loginForm');
-  if(lf) lf.addEventListener('submit', async (e)=>{
+  document.getElementById('toggleConfig')?.addEventListener('click', ()=>{ state.configOpen = !state.configOpen; render(); });
+  document.getElementById('cfgHttp')?.addEventListener('change', e=> state.httpBase = e.target.value.trim());
+  document.getElementById('cfgWs')?.addEventListener('change', e=> state.wsUrl = e.target.value.trim());
+  document.getElementById('loginForm')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const fd = new FormData(lf);
+    const fd = new FormData(e.target);
+    const btn = document.getElementById('loginSubmit');
+    btn.disabled = true; btn.textContent = 'Signing in…';
     await doLogin(fd.get('phone').trim(), fd.get('password'));
   });
-  const sf = document.getElementById('signupForm');
-  if(sf) sf.addEventListener('submit', async (e)=>{
+  document.getElementById('signupForm')?.addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const fd = new FormData(sf);
+    const fd = new FormData(e.target);
+    const btn = document.getElementById('signupSubmit');
+    btn.disabled = true; btn.textContent = 'Creating…';
     await doSignup(fd.get('name').trim(), fd.get('phone').trim(), fd.get('password'));
   });
 }
@@ -384,20 +450,14 @@ function bindAuthScreen(){
 async function doSignup(name, phone, password){
   state.authError='';
   const {ok, data, raw} = await httpCall('POST', '/signup', {name, phone, password});
-  if(ok){
-    toast('Account created — log in to continue.', 'good');
-    state.authTab = 'login';
-    render();
-  } else {
-    state.authError = extractErrorText(data, raw) || 'Signup failed.';
-    render();
-  }
+  if(ok){ toast('Account created — log in to continue.', 'good'); state.authTab='login'; state._prefillPhone = phone; render(); }
+  else { state.authError = extractErrorText(data, raw) || 'Signup failed.'; render(); }
 }
 
 async function doLogin(phone, password){
   state.authError='';
-  const {ok, data, raw} = await httpCall('POST', '/login', {phone, password});
-  if(ok && data && data.token){
+  const {ok, data} = await httpCall('POST', '/login', {phone, password});
+  if(ok && data?.token){
     state.token = data.token;
     const claims = decodeJwt(data.token);
     state.me = { phone: claims.phone || phone, name: claims.name || null, user_id: claims.user_id || null };
@@ -406,7 +466,7 @@ async function doLogin(phone, password){
     await loadConversations();
     render();
   } else {
-    state.authError = extractErrorText(data, raw) || 'Login failed — check phone and password.';
+    state.authError = 'Login failed — check phone and password.';
     render();
   }
 }
@@ -421,10 +481,13 @@ function extractErrorText(data, raw){
 }
 
 function logout(){
-  if(state.ws){ try{ state.ws.close(); }catch(e){} }
+  state.token = null;
+  if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if(state.ws) try{ state.ws.close(); }catch(e){}
   Object.assign(state, {
-    token:null, me:{phone:null,name:null,user_id:null}, ws:null, wsStatus:'down',
-    conversations:[], dmMessagesByPhone:{}, dmMeta:{}, groups:{}, activeChat:null,
+    me:{phone:null,name:null,user_id:null}, ws:null, wsStatus:'down',
+    conversations:[], dmMessagesByPhone:{}, dmMeta:{}, groups:{}, presence:{},
+    activeChat:null, openMenus:{}, sidebarOpen:false, modal:null,
   });
   render();
 }
@@ -437,40 +500,42 @@ function decodeJwt(token){
   }catch(e){ return {}; }
 }
 
-/* ============================== TOPBAR ============================== */
 function renderTopbar(){
-  const dotClass = state.wsStatus==='up' ? 'up' : (state.wsStatus==='down' ? 'down' : '');
+  const dotClass = state.wsStatus==='up' ? 'up' : (state.wsStatus==='connecting' ? 'connecting' : 'down');
   const label = state.wsStatus==='up' ? 'live' : (state.wsStatus==='connecting' ? 'connecting…' : 'disconnected');
   return `
   <div class="topbar">
+    <button class="hamburger" id="btnHamburger" aria-label="Toggle menu">☰</button>
     <div class="brand"><span class="brand-mark">Relay</span><span class="brand-sub">backend console</span></div>
     <div class="conn"><span class="conn-dot ${dotClass}"></span>${label} — <span class="mono">${escapeHtml(state.wsUrl)}</span></div>
     <div class="topbar-spacer"></div>
     <div class="who">signed in as <b>${escapeHtml(state.me.name || state.me.phone)}</b> <span class="mono">${escapeHtml(state.me.phone||'')}</span></div>
     <button class="btn ghost small" id="btnReconnect">Reconnect</button>
-    <button class="btn ghost small" id="btnToggleConsole">${state.consoleOpen?'Hide console':'Show console'}</button>
     <button class="btn small" id="btnLogout">Log out</button>
   </div>`;
 }
+
 function bindTopbar(){
-  document.getElementById('btnReconnect').addEventListener('click', connectWs);
-  document.getElementById('btnToggleConsole').addEventListener('click', ()=>{ state.consoleOpen = !state.consoleOpen; render(); });
-  document.getElementById('btnLogout').addEventListener('click', logout);
+  document.getElementById('btnReconnect')?.addEventListener('click', ()=>{ reconnectAttempts = 0; connectWs(); });
+  document.getElementById('btnLogout')?.addEventListener('click', logout);
+  document.getElementById('btnHamburger')?.addEventListener('click', ()=>{ state.sidebarOpen = !state.sidebarOpen; render(); });
+  document.getElementById('sidebarBackdrop')?.addEventListener('click', ()=>{ state.sidebarOpen = false; render(); });
 }
 
-/* ============================== SIDEBAR ============================== */
+function avatarWithPresence(label, phone){
+  const status = phone ? state.presence[phone] : null;
+  const dot = status ? `<span class="presence-dot ${status==='online'?'online':''}"></span>` : '';
+  return `<div class="avatar-wrap"><div class="avatar">${initials(label)}</div>${dot}</div>`;
+}
+
 function renderSidebar(){
   const chats = state.conversations.slice().sort((a,b)=> new Date(b.last_message_at||0) - new Date(a.last_message_at||0));
   const groupList = Object.values(state.groups);
-
   return `
-  <div class="sidebar">
+  <div class="sidebar ${state.sidebarOpen?'open':''}">
     <div class="identity">
       <div class="avatar">${initials(state.me.name||state.me.phone)}</div>
-      <div class="item-main">
-        <div class="item-title">${escapeHtml(state.me.name||'—')}</div>
-        <div class="item-sub">${escapeHtml(state.me.phone||'')}</div>
-      </div>
+      <div class="item-main"><div class="item-title">${escapeHtml(state.me.name||'—')}</div><div class="item-sub">${escapeHtml(state.me.phone||'')}</div></div>
     </div>
     <div class="tabs">
       <button class="tab ${state.sidebarTab==='chats'?'active':''}" data-tab="chats">Chats</button>
@@ -481,27 +546,21 @@ function renderSidebar(){
         <input class="mono" name="phone" placeholder="Message a phone number…" required>
         <button class="btn small" type="submit">Open</button>
       </form>
-      <div class="list">
-        ${chats.length===0 && !hasAdHocChats() ? `<div class="list-empty">No conversations yet. Enter a phone number above to start one — it's created the moment you send a message.</div>` : ''}
-        ${renderChatItems(chats)}
-      </div>
+      <div class="list">${chats.length===0 && !hasAdHocChats() ? `<div class="list-empty">No conversations yet — open one above.</div>` : renderChatItems(chats)}</div>
     ` : `
       <form class="newchat-form" id="newGroupForm">
         <input name="name" placeholder="New group name…" required>
         <button class="btn small" type="submit">Create</button>
       </form>
-      <div class="list">
-        ${groupList.length===0 ? `<div class="list-empty">No groups yet. Group data loads automatically after connecting (via the "auth" WebSocket event).</div>` : ''}
-        ${groupList.map(g=>`
-          <div class="item ${state.activeChat && state.activeChat.type==='group' && state.activeChat.id===g.id ? 'active':''}" data-open-group="${escapeAttr(g.id)}">
-            <div class="avatar">${initials(g.group_name)}</div>
-            <div class="item-main">
-              <div class="item-title">${escapeHtml(g.group_name)}</div>
-              <div class="item-sub">${(g.participants?g.participants.size:0)} members${g.admin_phone===state.me.phone?' · you\'re admin':''}</div>
-            </div>
+      <div class="list">${groupList.length===0 ? `<div class="list-empty">No groups yet — create one above.</div>` : groupList.map(g=>`
+        <div class="item ${state.activeChat?.type==='group' && state.activeChat.id===g.id ? 'active':''} ${g._pending?'pending':''}" data-open-group="${escapeAttr(g.id)}">
+          <div class="avatar">${initials(g.group_name)}</div>
+          <div class="item-main">
+            <div class="item-title">${escapeHtml(g.group_name)}${g._pending?' (creating…)':''}</div>
+            <div class="item-sub">${(g.participants?.size||0)} members${g.admin_phone===state.me.phone?' · admin':''}</div>
           </div>
-        `).join('')}
-      </div>
+        </div>
+      `).join('')}</div>
     `}
   </div>`;
 }
@@ -511,7 +570,6 @@ function hasAdHocChats(){
 }
 
 function renderChatItems(chats){
-  // merge server conversations with any ad-hoc phones we've started chatting with locally
   const known = new Set();
   let html = '';
   chats.forEach(c=>{
@@ -525,44 +583,36 @@ function renderChatItems(chats){
   return html;
 }
 function chatItemHtml(peer, conversationId){
-  const active = state.activeChat && state.activeChat.type==='dm' && state.activeChat.phone===peer;
+  const active = state.activeChat?.type==='dm' && state.activeChat.phone===peer;
   const msgs = state.dmMessagesByPhone[peer] || [];
   const last = msgs[msgs.length-1];
-  return `
-    <div class="item ${active?'active':''}" data-open-dm="${escapeAttr(peer)}" data-cid="${escapeAttr(conversationId||'')}">
-      <div class="avatar">${initials(peer)}</div>
-      <div class="item-main">
-        <div class="item-title mono">${escapeHtml(peer)}</div>
-        <div class="item-sub">${last ? escapeHtml(truncate(last.content,34)) : 'no messages loaded'}</div>
-      </div>
-    </div>`;
+  return `<div class="item ${active?'active':''}" data-open-dm="${escapeAttr(peer)}" data-cid="${escapeAttr(conversationId||'')}">
+    ${avatarWithPresence(peer, peer)}
+    <div class="item-main"><div class="item-title mono">${escapeHtml(peer)}</div><div class="item-sub">${last ? escapeHtml(truncate(last.content,34)) : 'no messages'}</div></div>
+  </div>`;
 }
 
 function bindSidebar(){
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>{ state.sidebarTab = t.dataset.tab; render(); }));
-  const ncf = document.getElementById('newChatForm');
-  if(ncf) ncf.addEventListener('submit', (e)=>{
+  document.getElementById('newChatForm')?.addEventListener('submit', (e)=>{
     e.preventDefault();
-    const phone = new FormData(ncf).get('phone').trim();
-    if(!phone) return;
-    openDm(phone);
+    const phone = new FormData(e.target).get('phone').trim();
+    if(phone) openDm(phone);
   });
-  const ngf = document.getElementById('newGroupForm');
-  if(ngf) ngf.addEventListener('submit', (e)=>{
+  document.getElementById('newGroupForm')?.addEventListener('submit', (e)=>{
     e.preventDefault();
-    const name = new FormData(ngf).get('name').trim();
-    if(!name) return;
-    createRoom(name);
-    ngf.reset();
+    const name = new FormData(e.target).get('name').trim();
+    if(name){ createRoom(name); e.target.reset(); }
   });
   document.querySelectorAll('[data-open-dm]').forEach(el=>el.addEventListener('click', async ()=>{
-    const phone = el.dataset.openDm;
-    const cid = el.dataset.cid;
-    await openDm(phone, cid || null);
+    state.sidebarOpen = false;
+    await openDm(el.dataset.openDm, el.dataset.cid || null);
   }));
   document.querySelectorAll('[data-open-group]').forEach(el=>el.addEventListener('click', ()=>{
     state.activeChat = { type:'group', id: el.dataset.openGroup };
     state.groupSettingsOpen = false;
+    state.sidebarOpen = false;
+    state.stickToBottom = true;
     render();
   }));
 }
@@ -571,59 +621,51 @@ async function openDm(phone, conversationId){
   if(!state.dmMeta[phone]) state.dmMeta[phone] = { conversationId: conversationId || null };
   if(conversationId) state.dmMeta[phone].conversationId = conversationId;
   state.activeChat = { type:'dm', phone };
+  state.stickToBottom = true;
   render();
+  if(state.presence[phone] === undefined) sendWs('active-status', { rec_phone: phone });
   if(state.dmMeta[phone].conversationId && !state.dmMessagesByPhone[phone]){
     await loadDmMessages(phone, state.dmMeta[phone].conversationId);
   }
 }
 
-/* ============================== HTTP calls ============================== */
 async function loadConversations(){
   const {ok, data} = await httpCall('POST', '/myconversation', {}, true);
-  if(ok && Array.isArray(data)) state.conversations = data;
-  else state.conversations = [];
+  state.conversations = (ok && Array.isArray(data)) ? data : [];
   render();
 }
 
 async function loadDmMessages(peer, conversationId){
   const {ok, data} = await httpCall('POST', '/getmessages', { conversationId }, true);
-  if(ok && data && Array.isArray(data.messages)){
-    state.dmMessagesByPhone[peer] = data.messages;
-  }
+  if(ok && data?.messages) state.dmMessagesByPhone[peer] = data.messages;
   render();
 }
 
 async function loadGroupMessages(groupId){
   const {ok, data} = await httpCall('POST', '/getgroupmessages', { groupId }, true);
-  if(ok && data && Array.isArray(data.messages) && state.groups[groupId]){
-    state.groups[groupId].messages = data.messages;
-  }
+  if(ok && data?.messages && state.groups[groupId]) state.groups[groupId].messages = data.messages;
   render();
 }
 
-/* ============================== CHAT PANE ============================== */
 function renderChatPane(){
-  if(!state.activeChat){
-    return `<div class="chat"><div class="chat-empty">
-      <div class="em-title">Nothing open</div>
-      <div class="em-sub">Pick a conversation or group on the left, or start a new one by phone number.</div>
-    </div></div>`;
-  }
+  if(!state.activeChat) return `<div class="chat"><div class="chat-empty"><div class="em-title">Nothing open</div><div class="em-sub">Pick a conversation or group on the left.</div></div></div>`;
   if(state.activeChat.type === 'dm') return renderDmPane(state.activeChat.phone);
   return renderGroupPane(state.activeChat.id);
 }
 
 function renderDmPane(peer){
   const msgs = state.dmMessagesByPhone[peer] || [];
+  const status = state.presence[peer];
+  const statusLabel = status === 'online' ? 'online' : (status === 'offline' ? 'offline' : 'direct message');
   return `
   <div class="chat">
     <div class="chat-header">
-      <div class="avatar">${initials(peer)}</div>
-      <div class="item-main"><div class="item-title mono">${escapeHtml(peer)}</div><div class="item-sub">direct message</div></div>
+      ${avatarWithPresence(peer, peer)}
+      <div class="item-main"><div class="item-title mono">${escapeHtml(peer)}</div><div class="item-sub status-text ${status==='online'?'online':''}">${statusLabel}</div></div>
       <div class="chat-header-spacer"></div>
     </div>
     <div class="messages" id="messagesEl">${renderDmMessages(msgs, peer)}</div>
-    <div class="typing-line" id="typingLine">${state.typingFrom[peer] ? 'typing…' : ''}</div>
+    <div class="typing-line" id="typingLine">${state.typingFrom[peer] ? escapeHtml(peer) + ' is typing…' : ''}</div>
     <form class="composer" id="composerForm">
       <textarea name="content" placeholder="Message ${peer}" required></textarea>
       <button class="btn primary" type="submit">Send</button>
@@ -632,23 +674,45 @@ function renderDmPane(peer){
 }
 
 function renderDmMessages(msgs, peer){
-  if(msgs.length===0) return `<div class="list-empty">No messages yet — say hello.</div>`;
+  if(msgs.length===0) return `<div class="list-empty">No messages yet.</div>`;
   return msgs.map(m=>{
     const mine = m.sender_phone === state.me.phone;
     const pending = m._pending;
+    const failed = m._failed;
     const seen = m.status === 'seen';
+    const isDeletedForMe = m.visibility === 'all_except_sender' && m.sender_phone === state.me.phone;
+    const isDeletedForEveryone = m.visibility === 'none';
+    const showDeleted = isDeletedForMe || isDeletedForEveryone;
+    const deletedText = isDeletedForMe ? 'You deleted this message' : 'This message was deleted';
+    const pinned = m.is_pinned === true;
+    const msgId = m.id;
+
     return `
     <div class="bubble-row ${mine?'me':''}">
-      <div>
-        <div class="bubble ${pending?'pending':''}">
-          <div class="bubble-text">${escapeHtml(m.content)}</div>
-          <div class="bubble-meta">
-            <span>${formatTime(m.created_at)}</span>
-            ${mine ? `<span class="tick ${seen?'seen':''}">${pending?'sending…':(seen?'✓✓ seen':(m.status==='delivered'?'✓✓':'✓'))}</span>` : ''}
-          </div>
+      ${msgId && !showDeleted && mine ? `
+      <div class="message-actions-wrapper">
+        <button class="menu-btn" data-toggle-menu="${escapeAttr(msgId)}">⋮</button>
+        <div class="action-menu" id="menu-${escapeAttr(msgId)}">
+          <button data-delete-for-me="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}">Delete for me</button>
+          <button class="danger" data-delete-for-everyone="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}" data-msgtype="conversation">Delete for everyone</button>
         </div>
-        ${(!mine && m.id) ? `<div class="bubble-actions"><button data-mark-seen="${escapeAttr(m.id)}" data-peer="${escapeAttr(peer)}">mark seen</button></div>` : ''}
+      </div>` : ''}
+      <div class="bubble ${pending?'pending':''} ${failed?'failed':''} ${pinned?'pinned':''} ${showDeleted?'deleted':''}">
+        <div class="bubble-text">${showDeleted ? deletedText : escapeHtml(m.content)}</div>
+        <div class="bubble-meta">
+          <span>${formatTime(m.created_at)}</span>
+          ${mine && !showDeleted ? `<span class="tick ${seen?'seen':''} ${failed?'failed':''}">${failed?'failed to send':(pending?'sending…':(seen?'✓✓ seen':(m.status==='delivered'?'✓✓':'✓')))}</span>` : ''}
+          ${mine && failed ? `<button class="retry-link" data-retry-dm="${escapeAttr(m.tempid||'')}" data-peer="${escapeAttr(peer)}">retry</button>` : ''}
+          ${pinned ? `<span class="tick" style="color:var(--accent);margin-left:4px;">📌 pinned</span>` : ''}
+        </div>
       </div>
+      ${msgId && !showDeleted && !mine ? `
+      <div class="message-actions-wrapper">
+        <button class="menu-btn" data-toggle-menu="${escapeAttr(msgId)}">⋮</button>
+        <div class="action-menu" id="menu-${escapeAttr(msgId)}">
+          ${!seen ? `<button data-mark-seen="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}">Mark seen</button>` : ''}
+        </div>
+      </div>` : ''}
     </div>`;
   }).join('');
 }
@@ -659,6 +723,10 @@ function renderGroupPane(groupId){
   const msgs = g.messages || [];
   const isAdmin = g.admin_phone === state.me.phone;
   const participants = Array.from(g.participants || []);
+  const pinnedMsgs = (msgs || []).filter(m => m.is_pinned === true);
+  const latestPin = pinnedMsgs.length > 0 ? pinnedMsgs[0] : null;
+  const hasMore = pinnedMsgs.length > 1;
+
   return `
   <div class="chat">
     <div class="chat-header">
@@ -667,8 +735,30 @@ function renderGroupPane(groupId){
       <div class="chat-header-spacer"></div>
       <button class="btn ghost small" id="btnLoadGroupHistory">Load history</button>
       <button class="btn ghost small" id="btnToggleGroupSettings">${state.groupSettingsOpen?'Hide members':'Members'}</button>
+      ${isAdmin ? `<button class="btn danger small" id="btnDeleteGroup">Delete group</button>` : ''}
     </div>
-    ${g.pinned ? `<div class="pin-bar">📌 <b>Pinned</b><span class="pin-text">${escapeHtml(g.pinned.content||'')}</span><button class="btn ghost small" id="btnUnpin" data-msg="${escapeAttr(g.pinned.id)}">Unpin</button></div>` : ''}
+    ${latestPin ? `
+    <div class="pin-bar" id="pinBar">
+      <div class="pin-row">
+        <span class="pin-icon">📌</span>
+        <span class="pin-text">${escapeHtml(latestPin.content)}</span>
+        <span class="pin-meta">— ${escapeHtml(latestPin.sender_name || latestPin.sender_phone)} · ${formatTime(latestPin.pinned_at)}</span>
+        ${hasMore ? `<span class="pin-more" id="pinMoreBtn">+${pinnedMsgs.length - 1} more</span>` : ''}
+        ${isAdmin ? `<button class="btn ghost small" id="btnUnpinAll" style="font-size:10px;padding:2px 6px;">Unpin all</button>` : ''}
+      </div>
+      ${hasMore ? `
+      <div class="pin-divider"></div>
+      <div class="pin-dropdown" id="pinDropdown" style="display:${state.pinDropdownOpen ? 'flex' : 'none'};flex-direction:column;gap:4px;">
+        ${pinnedMsgs.slice(1).map(m => `
+          <div class="pin-row">
+            <span class="pin-icon" style="font-size:10px;">📌</span>
+            <span class="pin-text" style="font-size:12px;">${escapeHtml(m.content)}</span>
+            <span class="pin-meta" style="font-size:10px;">— ${escapeHtml(m.sender_name || m.sender_phone)} · ${formatTime(m.pinned_at)}</span>
+            ${isAdmin ? `<button class="btn ghost small" data-unpin="${escapeAttr(m.id)}" style="font-size:9px;padding:1px 4px;">Unpin</button>` : ''}
+          </div>
+        `).join('')}
+      </div>` : ''}
+    </div>` : ''}
     ${state.groupSettingsOpen ? renderGroupSettings(g, isAdmin, participants) : ''}
     <div class="messages" id="messagesEl">${renderGroupMessages(msgs, g)}</div>
     <div class="typing-line"></div>
@@ -684,17 +774,15 @@ function renderGroupSettings(g, isAdmin, participants){
   <div class="group-panel"><div class="group-panel-inner">
     <div class="gp-block">
       <h4>Members (${participants.length})</h4>
-      <div class="chip-list">
-        ${participants.map(p=>`
-          <div class="chip ${p===g.admin_phone?'admin':''}">${escapeHtml(p)}${p===g.admin_phone?' · admin':''}
-            ${isAdmin && p!==g.admin_phone ? `<button data-remove-member="${escapeAttr(p)}" title="Remove">✕</button>` : ''}
-          </div>`).join('')}
-      </div>
+      <div class="chip-list">${participants.map(p=>`
+        <div class="chip ${p===g.admin_phone?'admin':''}">${escapeHtml(p)}${p===g.admin_phone?' · admin':''}
+          ${isAdmin && p!==g.admin_phone ? `<button data-remove-member="${escapeAttr(p)}">✕</button>` : ''}
+        </div>`).join('')}</div>
       ${isAdmin ? `
       <form class="gp-form" id="addMemberForm">
         <input class="mono" name="phone" placeholder="Phone to add" required>
         <button class="btn small" type="submit">Add</button>
-      </form>` : `<div class="hint">Only the admin (${escapeHtml(g.admin_phone)}) can add or remove members.</div>`}
+      </form>` : `<div class="hint">Only admin can add/remove members.</div>`}
     </div>
     <div class="gp-block">
       <h4>Leave group</h4>
@@ -710,28 +798,161 @@ function renderGroupSettings(g, isAdmin, participants){
 }
 
 function renderGroupMessages(msgs, g){
-  if(msgs.length===0) return `<div class="list-empty">No messages loaded. Send one, or click "Load history".</div>`;
+  if(msgs.length===0) return `<div class="list-empty">No messages loaded.</div>`;
+  const isAdmin = g.admin_phone === state.me.phone;
   return msgs.map(m=>{
     const mine = m.sender_phone === state.me.phone;
     const pending = m._pending;
-    const pinned = g.pinned && g.pinned.id === m.id;
+    const failed = m._failed;
+    const pinned = m.is_pinned === true;
+    const isDeletedForMe = m.visibility === 'all_except_sender' && m.sender_phone === state.me.phone;
+    const isDeletedForEveryone = m.visibility === 'none';
+    const showDeleted = isDeletedForMe || isDeletedForEveryone;
+    const deletedText = isDeletedForMe ? 'You deleted this message' : 'This message was deleted';
+    const msgId = m.id;
+    const menu = msgId && !showDeleted ? `
+      <div class="message-actions-wrapper">
+        <button class="menu-btn" data-toggle-menu="${escapeAttr(msgId)}">⋮</button>
+        <div class="action-menu" id="menu-${escapeAttr(msgId)}">
+          ${isAdmin ? (pinned ? `<button data-unpin="${escapeAttr(msgId)}">Unpin</button>` : `<button data-pin="${escapeAttr(msgId)}">Pin</button>`) : ''}
+          ${mine ? `<button data-delete-for-me="${escapeAttr(msgId)}">Delete for me</button>` : ''}
+          ${(isAdmin || mine) ? `<button class="danger" data-delete-for-everyone="${escapeAttr(msgId)}" data-msgtype="group">Delete for everyone</button>` : ''}
+        </div>
+      </div>` : '';
+
     return `
     <div class="bubble-row ${mine?'me':''}">
-      <div>
-        <div class="bubble ${pending?'pending':''} ${pinned?'pinned':''}">
-          ${!mine ? `<div class="bubble-sender">${escapeHtml(m.sender_name || m.sender_phone)}</div>` : ''}
-          <div class="bubble-text">${escapeHtml(m.content)}</div>
-          <div class="bubble-meta"><span>${formatTime(m.created_at)}</span>${pending?'<span>sending…</span>':''}</div>
+      ${mine ? menu : ''}
+      <div class="bubble ${pending?'pending':''} ${failed?'failed':''} ${pinned?'pinned':''} ${showDeleted?'deleted':''}">
+        ${!mine && !showDeleted ? `<div class="bubble-sender">${escapeHtml(m.sender_name || m.sender_phone)}</div>` : ''}
+        <div class="bubble-text">${showDeleted ? deletedText : escapeHtml(m.content)}</div>
+        <div class="bubble-meta"><span>${formatTime(m.created_at)}</span>${failed?'<span class="tick failed">failed</span>':(pending?'<span>sending…</span>':'')}
+          ${mine && failed ? `<button class="retry-link" data-retry-group="${escapeAttr(m.tempmsgId||'')}" data-group="${escapeAttr(g.id)}">retry</button>` : ''}
+          ${pinned ? `<span class="tick" style="color:var(--accent);margin-left:4px;">📌 pinned</span>` : ''}
         </div>
-        ${m.id ? `<div class="bubble-actions">${pinned ? `<button data-unpin="${escapeAttr(m.id)}">unpin</button>` : `<button data-pin="${escapeAttr(m.id)}">pin</button>`}</div>` : ''}
       </div>
+      ${!mine ? menu : ''}
     </div>`;
   }).join('');
 }
 
 function bindChatPane(){
   const msgsEl = document.getElementById('messagesEl');
-  if(msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
+  if(msgsEl){
+    if(state.stickToBottom) msgsEl.scrollTop = msgsEl.scrollHeight;
+    msgsEl.onscroll = ()=>{
+      state.stickToBottom = (msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight) < 100;
+    };
+  }
+
+  const pinMoreBtn = document.getElementById('pinMoreBtn');
+  if(pinMoreBtn){
+    pinMoreBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      state.pinDropdownOpen = !state.pinDropdownOpen;
+      render();
+    });
+  }
+
+  document.addEventListener('click', ()=>{
+    if(state.pinDropdownOpen){
+      state.pinDropdownOpen = false;
+      render();
+    }
+  });
+
+  document.querySelectorAll('[data-toggle-menu]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.toggleMenu;
+      const menu = document.getElementById('menu-' + id);
+      if(menu){
+        document.querySelectorAll('.action-menu').forEach(m => { if(m.id !== 'menu-'+id) m.classList.remove('open'); });
+        menu.classList.toggle('open');
+      }
+    });
+  });
+
+  document.addEventListener('click', ()=>{
+    document.querySelectorAll('.action-menu').forEach(m => m.classList.remove('open'));
+  }, { once:true });
+
+  document.querySelectorAll('[data-mark-seen]').forEach(b=>b.addEventListener('click', ()=>{
+    markSeen(b.dataset.markSeen, b.dataset.peer);
+  }));
+
+  document.querySelectorAll('[data-delete-for-me]').forEach(b=>b.addEventListener('click', ()=>{
+    const msgId = b.dataset.deleteForMe;
+    const msgType = state.activeChat.type === 'dm' ? 'conversation' : 'group';
+    applyLocalDelete(msgId, 'me');
+    sendWs('deletforme', { msgId, sender_phone: state.me.phone, msgType });
+  }));
+
+  document.querySelectorAll('[data-delete-for-everyone]').forEach(b=>b.addEventListener('click', ()=>{
+    const msgId = b.dataset.deleteForEveryone;
+    const msgType = b.dataset.msgtype || 'conversation';
+    askConfirm({
+      title: 'Delete for everyone?',
+      body: 'This removes the message for every participant. This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+      onConfirm: ()=>{
+        applyLocalDelete(msgId, 'everyone');
+        sendWs('globaldelete', { msgId, sender_phone: state.me.phone, msgType });
+      }
+    });
+  }));
+
+  document.querySelectorAll('[data-unpin]').forEach(b=>b.addEventListener('click', ()=>{
+    const msgId = b.dataset.unpin;
+    unpinMessage(msgId);
+    if(state.pinDropdownOpen){
+      state.pinDropdownOpen = false;
+      render();
+    }
+  }));
+
+  document.querySelectorAll('[data-retry-dm]').forEach(b=>b.addEventListener('click', ()=>{
+    retryDmMessage(b.dataset.peer, b.dataset.retryDm);
+  }));
+  document.querySelectorAll('[data-retry-group]').forEach(b=>b.addEventListener('click', ()=>{
+    retryGroupMessage(b.dataset.group, b.dataset.retryGroup);
+  }));
+
+  document.getElementById('btnLoadGroupHistory')?.addEventListener('click', ()=> loadGroupMessages(state.activeChat.id));
+  document.getElementById('btnDeleteGroup')?.addEventListener('click', ()=>{
+    askConfirm({
+      title: 'Delete this group?',
+      body: 'This permanently deletes the group and its messages for everyone. This cannot be undone.',
+      confirmLabel: 'Delete group',
+      danger: true,
+      onConfirm: ()=>{
+        const gid = state.activeChat.id;
+        sendWs('deletegroup', { roomId: gid, sender_phone: state.me.phone });
+        delete state.groups[gid];
+        state.activeChat = null;
+        render();
+      }
+    });
+  });
+  document.getElementById('btnToggleGroupSettings')?.addEventListener('click', ()=>{ state.groupSettingsOpen = !state.groupSettingsOpen; render(); });
+
+  document.getElementById('addMemberForm')?.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const phone = new FormData(e.target).get('phone').trim();
+    if(phone){ addMember(state.activeChat.id, phone); e.target.reset(); }
+  });
+  document.querySelectorAll('[data-remove-member]').forEach(b=>b.addEventListener('click', ()=>{
+    removeMember(state.activeChat.id, b.dataset.removeMember);
+  }));
+  document.getElementById('leaveGroupForm')?.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const newAdmin = new FormData(e.target).get('newAdmin');
+    leaveGroup(state.activeChat.id, newAdmin || null);
+  });
+  document.querySelectorAll('[data-pin]').forEach(b=>b.addEventListener('click', ()=> pinMessage(b.dataset.pin)));
+  document.getElementById('btnUnpin')?.addEventListener('click', ()=> unpinMessage(document.getElementById('btnUnpin').dataset.msg));
+  document.querySelectorAll('[data-unpin]').forEach(b=>b.addEventListener('click', ()=> unpinMessage(b.dataset.unpin)));
 
   const form = document.getElementById('composerForm');
   if(form){
@@ -739,72 +960,82 @@ function bindChatPane(){
     ta.addEventListener('keydown', (e)=>{
       if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); form.requestSubmit(); }
     });
-    let typingTimer = null;
     ta.addEventListener('input', ()=>{
       if(state.activeChat.type !== 'dm') return;
-      sendWs('typing', { reciever_phonenum: state.activeChat.phone, sender_phone: state.me.phone });
-      clearTimeout(typingTimer);
+      const now = Date.now();
+      if(now - lastTypingSentAt > 1500){
+        sendWs('typing', { reciever_phonenum: state.activeChat.phone, sender_phone: state.me.phone });
+        lastTypingSentAt = now;
+      }
     });
     form.addEventListener('submit', (e)=>{
       e.preventDefault();
       const content = new FormData(form).get('content').trim();
       if(!content) return;
+      state.stickToBottom = true;
       if(state.activeChat.type === 'dm') sendDmMessage(state.activeChat.phone, content);
       else sendGroupMessage(state.activeChat.id, content);
       ta.value=''; ta.focus();
     });
   }
-
-  document.querySelectorAll('[data-mark-seen]').forEach(b=>b.addEventListener('click', ()=>{
-    markSeen(b.dataset.markSeen, b.dataset.peer);
-  }));
-
-  const btnLoadHist = document.getElementById('btnLoadGroupHistory');
-  if(btnLoadHist) btnLoadHist.addEventListener('click', ()=> loadGroupMessages(state.activeChat.id));
-  const btnGs = document.getElementById('btnToggleGroupSettings');
-  if(btnGs) btnGs.addEventListener('click', ()=>{ state.groupSettingsOpen = !state.groupSettingsOpen; render(); });
-
-  const addMemberForm = document.getElementById('addMemberForm');
-  if(addMemberForm) addMemberForm.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const phone = new FormData(addMemberForm).get('phone').trim();
-    if(phone) addMember(state.activeChat.id, phone);
-    addMemberForm.reset();
-  });
-  document.querySelectorAll('[data-remove-member]').forEach(b=>b.addEventListener('click', ()=>{
-    removeMember(state.activeChat.id, b.dataset.removeMember);
-  }));
-  const leaveForm = document.getElementById('leaveGroupForm');
-  if(leaveForm) leaveForm.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const newAdmin = new FormData(leaveForm).get('newAdmin');
-    leaveGroup(state.activeChat.id, newAdmin || null);
-  });
-  document.querySelectorAll('[data-pin]').forEach(b=>b.addEventListener('click', ()=> pinMessage(b.dataset.pin)));
-  const unpinTop = document.getElementById('btnUnpin');
-  if(unpinTop) unpinTop.addEventListener('click', ()=> unpinMessage(unpinTop.dataset.msg));
-  document.querySelectorAll('[data-unpin]').forEach(b=>b.addEventListener('click', ()=> unpinMessage(b.dataset.unpin)));
 }
 
-/* ---------------------------- chat actions (optimistic) ---------------------------- */
+function findMessageById(msgId){
+  for(const peer in state.dmMessagesByPhone){
+    const m = state.dmMessagesByPhone[peer].find(x=>String(x.id)===String(msgId));
+    if(m) return m;
+  }
+  for(const gid in state.groups){
+    const list = state.groups[gid].messages || [];
+    const m = list.find(x=>String(x.id)===String(msgId));
+    if(m) return m;
+  }
+  return null;
+}
+
+function applyLocalDelete(msgId, mode){
+  const m = findMessageById(msgId);
+  if(m){ m.visibility = mode==='me' ? 'all_except_sender' : 'none'; render(); }
+}
+
 function sendDmMessage(peer, content){
   const tempid = newTempId('dm');
-  const optimistic = { id:null, tempid, sender_phone: state.me.phone, receiver_phone: peer, content, created_at: new Date().toISOString(), status:'sending', _pending:true };
+  const optimistic = { id:null, tempid, sender_phone: state.me.phone, receiver_phone: peer, content, created_at: new Date().toISOString(), status:'sending', _pending:true, visibility:'all', is_pinned:false };
   if(!state.dmMessagesByPhone[peer]) state.dmMessagesByPhone[peer] = [];
   state.dmMessagesByPhone[peer].push(optimistic);
   if(!state.dmMeta[peer]) state.dmMeta[peer] = { conversationId:null };
   render();
-  sendWs('chat', { sender_phonenum: state.me.phone, reciever_phonenum: peer, content, tempid });
+  const sent = sendWs('chat', { sender_phonenum: state.me.phone, reciever_phonenum: peer, content, tempid });
+  if(!sent){ optimistic._pending = false; optimistic._failed = true; render(); }
+}
+
+function retryDmMessage(peer, tempid){
+  const list = state.dmMessagesByPhone[peer] || [];
+  const m = list.find(x=>x.tempid===tempid);
+  if(!m) return;
+  m._pending = true; m._failed = false; render();
+  const sent = sendWs('chat', { sender_phonenum: state.me.phone, reciever_phonenum: peer, content: m.content, tempid });
+  if(!sent){ m._pending = false; m._failed = true; render(); }
 }
 
 function sendGroupMessage(groupId, content){
   const g = state.groups[groupId]; if(!g) return;
   const tempmsgId = newTempId('grp');
-  const optimistic = { id:null, tempmsgId, sender_phone: state.me.phone, group_id: groupId, content, created_at: new Date().toISOString(), _pending:true };
+  const optimistic = { id:null, tempmsgId, sender_phone: state.me.phone, group_id: groupId, content, created_at: new Date().toISOString(), _pending:true, visibility:'all', is_pinned:false };
   g.messages = g.messages || [];
   g.messages.push(optimistic);
   render();
-  sendWs('sendtoroom', { roomId: groupId, tempmsgId, sender_phone: state.me.phone, message: content });
+  const sent = sendWs('sendtoroom', { roomId: groupId, tempmsgId, sender_phone: state.me.phone, message: content });
+  if(!sent){ optimistic._pending = false; optimistic._failed = true; render(); }
+}
+
+function retryGroupMessage(groupId, tempmsgId){
+  const g = state.groups[groupId]; if(!g) return;
+  const m = (g.messages||[]).find(x=>x.tempmsgId===tempmsgId);
+  if(!m) return;
+  m._pending = true; m._failed = false; render();
+  const sent = sendWs('sendtoroom', { roomId: groupId, tempmsgId, sender_phone: state.me.phone, message: m.content });
+  if(!sent){ m._pending = false; m._failed = true; render(); }
 }
 
 function markSeen(messageId, peer){
@@ -816,69 +1047,116 @@ function markSeen(messageId, peer){
 
 function createRoom(name){
   const tempid = newTempId('room');
+  state.groups[tempid] = { id: tempid, group_name: name, admin_phone: state.me.phone, participants: new Set([state.me.phone]), messages: [], pinned: null, _pending: true };
   state._pendingRoomName = state._pendingRoomName || {};
   state._pendingRoomName[tempid] = name;
+  render();
   sendWs('create-room', { sender_phone: state.me.phone, group_name: name, tempid });
 }
 
 function addMember(groupId, phone){
+  const g = state.groups[groupId];
+  if(g && !g.participants.has(phone)){
+    g.participants.add(phone);
+    state.pendingAdd = { groupId, phone };
+    render();
+  }
   sendWs('addtoroom', { roomId: groupId, receiver_phone: phone, sender_phone: state.me.phone });
 }
+
 function removeMember(groupId, phone){
-  sendWs('removeuser', { roomId: groupId, receiver_phone: phone });
+  askConfirm({
+    title: 'Remove member?',
+    body: phone + ' will be removed from the group.',
+    confirmLabel: 'Remove',
+    danger: true,
+    onConfirm: ()=>{
+      const g = state.groups[groupId];
+      if(g){
+        g.participants.delete(phone);
+        state.pendingRemove = { groupId, phone };
+        render();
+      }
+      sendWs('removeuser', { roomId: groupId, receiver_phone: phone });
+    }
+  });
 }
+
 function leaveGroup(groupId, newAdmin){
-  sendWs('leaveroom', { sender_phone: state.me.phone, roomId: groupId, newAdmin: newAdmin || undefined });
+  askConfirm({
+    title: 'Leave group?',
+    body: 'You will stop receiving messages from this group.',
+    confirmLabel: 'Leave',
+    danger: true,
+    onConfirm: ()=>{
+      sendWs('leaveroom', { sender_phone: state.me.phone, roomId: groupId, newAdmin: newAdmin || undefined });
+      delete state.groups[groupId];
+      if(state.activeChat?.type==='group' && state.activeChat.id===groupId) state.activeChat = null;
+      render();
+    }
+  });
 }
-function pinMessage(msgId){ sendWs('pinmsg', { msgId, sender_phone: state.me.phone }); }
-function unpinMessage(msgId){ sendWs('unpin', { msgId, sender_phone: state.me.phone }); }
 
-/* ============================== WEBSOCKET ============================== */
-function connectWs(){
-  if(state.ws){ try{ state.ws.close(); }catch(e){} }
-  state.wsStatus = 'connecting'; render();
-  let socket;
-  try{
-    socket = new WebSocket(state.wsUrl);
-  }catch(err){
-    state.wsStatus = 'down'; addLog('err', 'WebSocket URL invalid', String(err)); render(); return;
+function pinMessage(msgId){
+  if(state.activeChat?.type === 'group'){
+    const g = state.groups[state.activeChat.id];
+    const m = (g?.messages||[]).find(x=>String(x.id)===String(msgId));
+    if(g && m){ m.is_pinned = true; m.pinned_at = new Date().toISOString(); m.pinned_by = state.me.phone; render(); }
   }
-  state.ws = socket;
+  sendWs('pinmsg', { msgId, sender_phone: state.me.phone });
+}
 
-  socket.addEventListener('open', ()=>{
-    state.wsStatus = 'up';
-    addLog('out', 'connection opened', {url: state.wsUrl});
-    sendWs('auth', state.token);
-    render();
-  });
-  socket.addEventListener('close', ()=>{
-    state.wsStatus = 'down';
-    addLog('in', 'connection closed', {});
-    render();
-  });
-  socket.addEventListener('error', ()=>{
-    addLog('err', 'socket error', {});
-  });
-  socket.addEventListener('message', (ev)=> handleWsMessage(ev.data));
+function unpinMessage(msgId){
+  if(state.activeChat?.type === 'group'){
+    const g = state.groups[state.activeChat.id];
+    const m = (g?.messages||[]).find(x=>String(x.id)===String(msgId));
+    if(g && m){ m.is_pinned = false; m.pinned_at = null; m.pinned_by = null; render(); }
+  }
+  sendWs('unpin', { msgId, sender_phone: state.me.phone });
+}
+
+function connectWs(){
+  if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if(state.ws) try{ state.ws.close(); }catch(e){}
+  state.wsStatus = 'connecting'; render();
+  try{
+    const socket = new WebSocket(state.wsUrl);
+    state.ws = socket;
+    socket.addEventListener('open', ()=>{
+      reconnectAttempts = 0;
+      state.wsStatus='up';
+      sendWs('auth', state.token);
+      render();
+    });
+    socket.addEventListener('close', ()=>{
+      state.wsStatus='down'; render();
+      if(state.token){
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 15000);
+        reconnectAttempts++;
+        reconnectTimer = setTimeout(connectWs, delay);
+      }
+    });
+    socket.addEventListener('message', (ev)=> handleWsMessage(ev.data));
+  }catch(err){
+    state.wsStatus='down'; render();
+  }
 }
 
 function sendWs(event, data){
   if(!state.ws || state.wsStatus !== 'up'){
-    toast('Not connected — click Reconnect.', 'err');
-    return;
+    toast('Not connected — reconnecting…', 'err');
+    return false;
   }
-  const payload = { event, data };
-  addLog('out', event, payload);
-  state.ws.send(JSON.stringify(payload));
+  state.ws.send(JSON.stringify({ event, data }));
+  return true;
 }
 
 function handleWsMessage(raw){
   let msg;
   try{ msg = JSON.parse(raw); }
-  catch(e){ addLog('in', 'text', raw); if(raw==='connected') toast('WebSocket connected.', 'info'); return; }
+  catch(e){ if(raw==='connected') toast('WebSocket connected.', 'info'); return; }
 
   const ev = (msg.event || '').trim();
-  addLog('in', ev || '(no event field)', msg);
 
   switch(ev){
     case 'group-data': {
@@ -888,11 +1166,19 @@ function handleWsMessage(raw){
         state.groups[r.id] = {
           id: r.id, group_name: r.group_name, admin_phone: r.admin_phone,
           participants: new Set(r.participants||[]),
-          messages: existing ? existing.messages : [],
-          pinned: existing ? existing.pinned : null,
+          messages: existing?.messages || [],
         };
       });
       render();
+      break;
+    }
+    case 'presence-list': {
+      (msg.contacts||[]).forEach(c=>{ if(c && c.phone) state.presence[c.phone] = c.status; });
+      render();
+      break;
+    }
+    case 'presence': {
+      if(msg.phone){ state.presence[msg.phone] = msg.status; render(); }
       break;
     }
     case 'chat': {
@@ -903,7 +1189,7 @@ function handleWsMessage(raw){
         state.dmMessagesByPhone[peer].push(message);
         if(!state.dmMeta[peer]) state.dmMeta[peer] = { conversationId: message.conversation_id || null };
         if(message.conversation_id) state.dmMeta[peer].conversationId = message.conversation_id;
-        if(!(state.activeChat && state.activeChat.type==='dm' && state.activeChat.phone===peer)) toast(peer+': '+truncate(message.content,60), 'info');
+        if(!(state.activeChat?.type==='dm' && state.activeChat.phone===peer)) toast(peer+': '+truncate(message.content,60), 'info');
       }
       render();
       break;
@@ -912,7 +1198,7 @@ function handleWsMessage(raw){
       const peer = msg.sender_phone;
       if(peer){
         state.typingFrom[peer] = true; render();
-        clearTimeout(state._typingTimers && state._typingTimers[peer]);
+        clearTimeout(state._typingTimers?.[peer]);
         state._typingTimers = state._typingTimers || {};
         state._typingTimers[peer] = setTimeout(()=>{ delete state.typingFrom[peer]; render(); }, 2500);
       }
@@ -931,27 +1217,32 @@ function handleWsMessage(raw){
       if(m && state.groups[m.group_id]){
         state.groups[m.group_id].messages = state.groups[m.group_id].messages || [];
         state.groups[m.group_id].messages.push(m);
-        if(!(state.activeChat && state.activeChat.type==='group' && state.activeChat.id===m.group_id)) toast('New message in group', 'info');
+        if(!(state.activeChat?.type==='group' && state.activeChat.id===m.group_id)) toast('New message in group', 'info');
       }
       render();
       break;
     }
-    case 'added to a room': {
-      toast('Added to group "'+msg.groupName+'"', 'good');
+    case 'added to a room': toast('Added to group "'+msg.groupName+'"', 'good'); break;
+    case 'user added': state.pendingAdd = null; toast('Member added.', 'good'); break;
+    case 'unathorized action': {
+      if(state.pendingAdd){
+        const g = state.groups[state.pendingAdd.groupId];
+        if(g) g.participants.delete(state.pendingAdd.phone);
+        state.pendingAdd = null;
+      }
+      toast(msg.message || 'Not authorized.', 'err');
+      render();
       break;
     }
-    case 'user added': toast('Member added.', 'good'); break;
-    case 'unathorized action': toast(msg.message || 'Not authorized.', 'err'); break;
     case 'invalid room creds': toast(msg.message || 'Group does not exist.', 'err'); break;
     case 'removed from the group': {
       toast('You were removed from a group.', 'err');
-      if(msg.roomId){ delete state.groups[msg.roomId]; if(state.activeChat && state.activeChat.id===msg.roomId) state.activeChat=null; }
+      if(msg.roomId){ delete state.groups[msg.roomId]; if(state.activeChat?.id===msg.roomId) state.activeChat=null; }
       render();
       break;
     }
     case 'user removal': toast(msg.message || 'Member removed.', 'good'); break;
     case 'notify others': {
-      toast(msg.message || 'Group updated.', 'info');
       if(msg.roomId && state.groups[msg.roomId]){
         state.groups[msg.roomId].messages = state.groups[msg.roomId].messages || [];
         state.groups[msg.roomId].messages.push({ id:null, sender_phone:'system', sender_name:'System', content: msg.message, created_at: new Date().toISOString(), group_id: msg.roomId, system:true });
@@ -959,46 +1250,92 @@ function handleWsMessage(raw){
       }
       break;
     }
-    case 'removal success': toast(msg.message || 'Removed.', 'good'); break;
-    case 'error while removal': toast(msg.message || 'Removal failed.', 'err'); break;
-    case 'not participant': toast(msg.message || 'User not in group.', 'err'); break;
-    case 'left-group': {
-      toast(msg.message || 'You left the group.', 'good');
-      if(state.activeChat && state.activeChat.type==='group'){ delete state.groups[state.activeChat.id]; state.activeChat=null; }
+    case 'removal success': toast(msg.message || 'Removed.', 'good'); state.pendingRemove = null; break;
+    case 'error while removal':
+    case 'not participant': {
+      if(state.pendingRemove){
+        const g = state.groups[state.pendingRemove.groupId];
+        if(g) g.participants.add(state.pendingRemove.phone);
+        state.pendingRemove = null;
+      }
+      toast(msg.message || 'Could not remove member.', 'err');
       render();
       break;
     }
+    case 'left-group': toast(msg.message || 'You left the group.', 'good'); break;
     case 'issue with group leaving': toast(msg.message || 'Could not leave group.', 'err'); break;
     case 'error': toast(msg.err_msg || msg.message || 'Server error.', 'err'); break;
-    case 'auth': {
-      toast('Session expired — please log in again.', 'err');
-      logout();
-      break;
-    }
+    case 'auth': toast('Session expired — please log in again.', 'err'); logout(); break;
     case 'pinned':
     case 'unpinned': {
       const info = msg.pinInfo;
       if(info){
         const gid = info.group_id;
         if(gid && state.groups[gid]){
-          state.groups[gid].pinned = ev==='pinned' && info.is_pinned ? info : (ev==='pinned' ? info : null);
-          if(ev==='unpinned') state.groups[gid].pinned = null;
           const list = state.groups[gid].messages || [];
           const m = list.find(x=>String(x.id)===String(info.id));
-          if(m) Object.assign(m, info);
+          if(m){ m.is_pinned = info.is_pinned; m.pinned_at = info.pinned_at; m.pinned_by = info.pinned_by; render(); }
+        } else {
+          const peer = info.sender_phone === state.me.phone ? info.receiver_phone : info.sender_phone;
+          const list = state.dmMessagesByPhone[peer] || [];
+          const m = list.find(x=>String(x.id)===String(info.id));
+          if(m){ m.is_pinned = info.is_pinned; m.pinned_at = info.pinned_at; m.pinned_by = info.pinned_by; render(); }
         }
       }
       render();
       break;
     }
+    case 'message_global_deleted': {
+      const data = msg.data;
+      if(data){
+        if(data.msgType === 'group' && data.message.group_id && state.groups[data.message.group_id]){
+          const list = state.groups[data.message.group_id].messages || [];
+          const m = list.find(x=>String(x.id)===String(data.messageId));
+          if(m) Object.assign(m, data.message);
+        } else if(data.msgType === 'conversation'){
+          const peer = data.message.sender_phone === state.me.phone ? data.message.receiver_phone : data.message.sender_phone;
+          const list = state.dmMessagesByPhone[peer] || [];
+          const m = list.find(x=>String(x.id)===String(data.messageId));
+          if(m) Object.assign(m, data.message);
+        }
+        render();
+      }
+      break;
+    }
+    case 'global_delete_success': break;
+    case 'delete_for_me_success': break;
+    case 'group_deleted': {
+      toast('Group deleted by admin.', 'err');
+      const groupId = msg.data?.groupId;
+      if(groupId){ delete state.groups[groupId]; if(state.activeChat?.id===groupId) state.activeChat=null; }
+      render();
+      break;
+    }
     default: {
-      // no-event acks — disambiguate by shape (backend quirk: several acks omit "event")
       if(msg.tempid && msg.correctid && msg.status){
-        reconcileDm(msg.tempid, msg.correctid, msg.status);
-      } else if(msg.tempid && msg.correctid !== undefined && msg.message){
-        reconcileRoom(msg.tempid, msg.correctid);
-      } else if(msg.tempmsgId && msg.correctid !== undefined){
-        reconcileGroupMsg(msg.tempmsgId, msg.correctid, msg.message);
+        Object.keys(state.dmMessagesByPhone).forEach(peer=>{
+          const list = state.dmMessagesByPhone[peer];
+          const m = list.find(x=>x.tempid===msg.tempid);
+          if(m){ m.id = msg.correctid; m.status = msg.status; m._pending = false; m._failed = false; }
+        });
+      } else if(msg.tempid && msg.correctid){
+        const name = state._pendingRoomName?.[msg.tempid];
+        if(msg.correctid){
+          const finalGroup = {
+            id: msg.correctid, group_name: name || ('Group '+msg.correctid), admin_phone: state.me.phone,
+            participants: new Set([state.me.phone]), messages: [],
+          };
+          delete state.groups[msg.tempid];
+          state.groups[msg.correctid] = state.groups[msg.correctid] || finalGroup;
+          if(state.activeChat?.type==='group' && state.activeChat.id===msg.tempid) state.activeChat = { type:'group', id: msg.correctid };
+          toast('Group "'+(name||msg.correctid)+'" created.', 'good');
+        }
+      } else if(msg.tempmsgId && msg.correctid){
+        Object.values(state.groups).forEach(g=>{
+          const list = g.messages || [];
+          const m = list.find(x=>x.tempmsgId===msg.tempmsgId);
+          if(m){ m.id = msg.correctid; m._pending = false; m._failed = false; }
+        });
       } else if(msg.message && !ev){
         toast(msg.message, msg.error ? 'err' : 'info');
       }
@@ -1007,126 +1344,21 @@ function handleWsMessage(raw){
   }
 }
 
-function reconcileDm(tempid, correctid, status){
-  Object.keys(state.dmMessagesByPhone).forEach(peer=>{
-    const list = state.dmMessagesByPhone[peer];
-    const m = list.find(x=>x.tempid===tempid);
-    if(m){ m.id = correctid; m.status = status; m._pending = false; }
-  });
-}
-function reconcileRoom(tempid, correctid){
-  const name = state._pendingRoomName && state._pendingRoomName[tempid];
-  if(correctid){
-    state.groups[correctid] = state.groups[correctid] || {
-      id: correctid, group_name: name || ('Group '+correctid), admin_phone: state.me.phone,
-      participants: new Set([state.me.phone]), messages: [], pinned: null,
-    };
-    toast('Group "'+(name||correctid)+'" created.', 'good');
-  }
-}
-function reconcileGroupMsg(tempmsgId, correctid, message){
-  Object.values(state.groups).forEach(g=>{
-    const list = g.messages || [];
-    const m = list.find(x=>x.tempmsgId===tempmsgId);
-    if(m){ m.id = correctid; m._pending = false; }
-  });
-  if(message && typeof message === 'string' && /error/i.test(message)) toast(message, 'err');
-}
-
-/* ============================== CONSOLE ============================== */
-function renderConsole(){
-  return `
-  <div class="console">
-    <div class="console-tabs">
-      <button class="console-tab ${state.consoleTab==='log'?'active':''}" data-ctab="log">Activity (${state.log.length})</button>
-      <button class="console-tab ${state.consoleTab==='raw'?'active':''}" data-ctab="raw">Raw send</button>
-    </div>
-    ${state.consoleTab==='log' ? renderLogList() : renderRawSend()}
-  </div>`;
-}
-
-function renderLogList(){
-  if(state.log.length===0) return `<div class="log-list"><div class="log-empty">Every HTTP call and WebSocket event — sent and received — will appear here as you use the app.</div></div>`;
-  const items = state.log.slice().reverse();
-  return `<div class="log-list" id="logList">
-    ${items.map((l,i)=>`
-      <div class="log-entry">
-        <div class="log-head" data-logtoggle="${l._id}">
-          <span class="log-dir ${l.dir}">${l.dir}</span>
-          <span class="log-label">${escapeHtml(l.label)}</span>
-          <span class="log-time">${l.time}</span>
-        </div>
-        <div class="log-body ${l._open?'':'hidden'}" id="logbody-${l._id}"><pre>${escapeHtml(safeStringify(l.payload))}</pre></div>
-      </div>
-    `).join('')}
-  </div>`;
-}
-
-function renderRawSend(){
-  const events = ['auth','chat','typing','seen','create-room','addtoroom','sendtoroom','leaveroom','removeuser','pinmsg','unpin'];
-  return `<div class="raw-send">
-    <div class="hint">Send any event straight over the socket to test edge cases the UI doesn't cover. The payload is sent as <span class="mono">{event, data}</span>.</div>
-    <div class="field"><span class="field-label">Event name</span>
-      <select id="rawEvent">${events.map(e=>`<option value="${e}">${e}</option>`).join('')}<option value="__custom">custom…</option></select>
-    </div>
-    <div class="field" id="rawCustomWrap"><span class="field-label">Custom event name</span><input id="rawCustomEvent" placeholder="event name"></div>
-    <div class="field"><span class="field-label">Data (JSON)</span><textarea id="rawData" spellcheck="false">{}</textarea></div>
-    <button class="btn primary" id="rawSendBtn">Send over WebSocket</button>
-    <div class="hint">HTTP endpoints are also logged automatically — trigger signup / login / load-history from the app to see their requests and responses here.</div>
-  </div>`;
-}
-
-function bindConsole(){
-  document.querySelectorAll('[data-ctab]').forEach(t=>t.addEventListener('click', ()=>{ state.consoleTab = t.dataset.ctab; render(); }));
-  document.querySelectorAll('[data-logtoggle]').forEach(h=>h.addEventListener('click', ()=>{
-    const id = h.dataset.logtoggle;
-    const entry = state.log.find(l=>String(l._id)===id);
-    if(entry) entry._open = !entry._open;
-    render();
-  }));
-  const rawEvent = document.getElementById('rawEvent');
-  const customWrap = document.getElementById('rawCustomWrap');
-  if(rawEvent){
-    const sync = ()=> customWrap.style.display = rawEvent.value==='__custom' ? 'block' : 'none';
-    sync(); rawEvent.addEventListener('change', sync);
-  }
-  const btn = document.getElementById('rawSendBtn');
-  if(btn) btn.addEventListener('click', ()=>{
-    const evName = rawEvent.value==='__custom' ? document.getElementById('rawCustomEvent').value.trim() : rawEvent.value;
-    let data;
-    try{ data = JSON.parse(document.getElementById('rawData').value); }
-    catch(e){ toast('Data must be valid JSON.', 'err'); return; }
-    sendWs(evName, data);
-  });
-}
-
-function addLog(dir, label, payload){
-  state.log.push({ _id: state.log.length+1+'_'+Date.now(), dir, label, payload, time: formatClock(new Date()), _open:false });
-  if(state.log.length > 300) state.log.shift();
-  if(state.consoleOpen) queueMicrotask(()=>{ const el=document.getElementById('logList'); if(el && state.consoleTab==='log') el.scrollTop=0; });
-}
-
-/* ============================== HTTP wrapper ============================== */
 async function httpCall(method, path, body, authed){
   const url = state.httpBase.replace(/\/$/,'') + path;
   const headers = { 'Content-Type': 'application/json' };
   if(authed && state.token) headers['token'] = state.token;
-  const label = method + ' ' + path;
-  addLog('http', label + ' →', { url, headers, body });
   try{
     const res = await fetch(url, { method, headers, body: body!==undefined ? JSON.stringify(body) : undefined });
     const text = await res.text();
     let data = null;
-    try{ data = text ? JSON.parse(text) : null; }catch(e){ data = null; }
-    addLog(res.ok ? 'http' : 'err', label + ' ← ' + res.status, data!==null ? data : text);
+    try{ data = text ? JSON.parse(text) : null; }catch(e){}
     return { ok: res.ok, status: res.status, data, raw: text };
   }catch(err){
-    addLog('err', label + ' ← network error', String(err));
     return { ok:false, status:0, data:null, raw: String(err) };
   }
 }
 
-/* ============================== toasts & helpers ============================== */
 function toast(text, kind){
   const wrap = document.getElementById('toasts');
   const el = document.createElement('div');
@@ -1139,13 +1371,10 @@ function toast(text, kind){
 function initials(s){ if(!s) return '?'; const parts = String(s).replace(/[^a-zA-Z0-9 ]/g,' ').trim().split(/\s+/); if(parts.length===1) return parts[0].slice(0,2).toUpperCase(); return (parts[0][0]+parts[1][0]).toUpperCase(); }
 function truncate(s,n){ if(!s) return ''; s=String(s); return s.length>n ? s.slice(0,n-1)+'…' : s; }
 function formatTime(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
-function formatClock(d){ return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}); }
-function safeStringify(o){ try{ return typeof o==='string' ? o : JSON.stringify(o, (k,v)=> v instanceof Set ? Array.from(v) : v, 2); }catch(e){ return String(o); } }
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return escapeHtml(s); }
 function escapeAttrText(s){ return escapeHtml(s); }
 
-/* ---------------------------- boot ---------------------------- */
 render();
 </script>
 </body>
