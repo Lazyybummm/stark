@@ -191,13 +191,25 @@
   .bubble.failed{ opacity:.85; box-shadow:0 0 0 1px var(--danger); }
   .bubble.pinned{ box-shadow:0 0 0 1px var(--accent); }
   .bubble.deleted{ opacity:.5; font-style:italic; color:var(--text-faint); }
+  .reply-preview{
+    border-left:2px solid var(--accent);
+    padding:3px 8px;
+    margin-bottom:4px;
+    background:var(--panel-3);
+    border-radius:3px;
+    font-size:11.5px;
+    color:var(--text-dim);
+    cursor:pointer;
+  }
+  .reply-preview:hover{ background:var(--panel-2); }
+  .reply-preview .reply-author{ color:var(--accent); font-weight:600; }
   .tick{ font-family:var(--mono); }
   .tick.seen{ color:var(--good); }
   .tick.failed{ color:var(--danger); }
   .bubble-row.me .tick.seen{ color:#1A1300; font-weight:700; }
   .retry-link{ background:none; border:none; padding:0; margin-left:4px; color:inherit; text-decoration:underline; font-size:10.5px; cursor:pointer; }
 
-  .message-actions-wrapper{ position:relative; display:inline-flex; align-self:flex-end; margin:0 6px; flex-shrink:0; }
+  .message-actions-wrapper{ position:relative; display:inline-flex; align-self:flex-end; margin:0 6px; flex-shrink:0; z-index:5; }
   .menu-btn{
     background:var(--panel-3); border:1px solid var(--border); color:var(--text-dim); font-size:14px;
     width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
@@ -206,11 +218,11 @@
   .menu-btn:hover{ color:var(--text); border-color:var(--text-faint); }
 
   .action-menu{
-    position:absolute; right:0; top:100%; background:var(--panel-2); border:1px solid var(--border);
-    border-radius:var(--radius-s); padding:4px 0; min-width:150px; z-index:10;
+    position:absolute; right:0; bottom:100%; margin-bottom:4px; background:var(--panel-2); border:1px solid var(--border);
+    border-radius:var(--radius-s); padding:4px 0; min-width:160px; z-index:20;
     box-shadow:0 4px 16px rgba(0,0,0,0.4); display:none; animation:menuIn .1s ease;
   }
-  @keyframes menuIn{ from{opacity:0; transform:translateY(-3px);} to{opacity:1; transform:translateY(0);} }
+  .bubble-row.me .action-menu{ right:0; left:auto; }
   .action-menu.open{ display:block; }
   .action-menu button{
     display:block; width:100%; padding:7px 14px; text-align:left;
@@ -219,6 +231,14 @@
   }
   .action-menu button:hover{ background:var(--panel-3); }
   .action-menu button.danger{ color:var(--danger); }
+
+  .reply-indicator{
+    display:flex; align-items:center; gap:8px; padding:6px 12px;
+    background:var(--panel-2); border-top:1px solid var(--border);
+    font-size:12px; color:var(--text-dim);
+  }
+  .reply-indicator .reply-target{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .reply-indicator .reply-cancel{ background:none; border:none; color:var(--text-faint); cursor:pointer; font-size:14px; }
 
   .typing-line{ padding:0 18px 6px; font-size:12px; color:var(--text-faint); font-style:italic; min-height:18px; flex-shrink:0; }
 
@@ -331,6 +351,7 @@ const state = {
   pendingAdd: null,
   pendingRemove: null,
   pinDropdownOpen: false,
+  replyTo: null,
 };
 
 let reconnectAttempts = 0;
@@ -664,6 +685,12 @@ function renderDmPane(peer){
       <div class="item-main"><div class="item-title mono">${escapeHtml(peer)}</div><div class="item-sub status-text ${status==='online'?'online':''}">${statusLabel}</div></div>
       <div class="chat-header-spacer"></div>
     </div>
+    ${state.replyTo ? `
+    <div class="reply-indicator">
+      <span>↩ Replying to:</span>
+      <span class="reply-target">${escapeHtml(state.replyTo.content)}</span>
+      <button class="reply-cancel" id="cancelReplyBtn">✕</button>
+    </div>` : ''}
     <div class="messages" id="messagesEl">${renderDmMessages(msgs, peer)}</div>
     <div class="typing-line" id="typingLine">${state.typingFrom[peer] ? escapeHtml(peer) + ' is typing…' : ''}</div>
     <form class="composer" id="composerForm">
@@ -686,18 +713,26 @@ function renderDmMessages(msgs, peer){
     const deletedText = isDeletedForMe ? 'You deleted this message' : 'This message was deleted';
     const pinned = m.is_pinned === true;
     const msgId = m.id;
-
-    return `
-    <div class="bubble-row ${mine?'me':''}">
-      ${msgId && !showDeleted && mine ? `
+    const hasReply = m.reply_to;
+    const menu = msgId && !showDeleted ? `
       <div class="message-actions-wrapper">
         <button class="menu-btn" data-toggle-menu="${escapeAttr(msgId)}">⋮</button>
         <div class="action-menu" id="menu-${escapeAttr(msgId)}">
-          <button data-delete-for-me="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}">Delete for me</button>
-          <button class="danger" data-delete-for-everyone="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}" data-msgtype="conversation">Delete for everyone</button>
+          ${mine ? `<button data-delete-for-me="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}">Delete for me</button>` : ''}
+          ${mine ? `<button class="danger" data-delete-for-everyone="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}" data-msgtype="conversation">Delete for everyone</button>` : ''}
+          ${!mine ? `<button data-reply="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}">Reply</button>` : ''}
         </div>
-      </div>` : ''}
+      </div>` : '';
+
+    return `
+    <div class="bubble-row ${mine?'me':''}">
+      ${mine ? menu : ''}
       <div class="bubble ${pending?'pending':''} ${failed?'failed':''} ${pinned?'pinned':''} ${showDeleted?'deleted':''}">
+        ${hasReply ? `
+        <div class="reply-preview" data-scroll-to="${escapeAttr(m.reply_to)}">
+          <span class="reply-author">${escapeHtml(m.reply_sender_name || m.reply_sender_phone)}</span>
+          <span>${escapeHtml(truncate(m.reply_content, 60))}</span>
+        </div>` : ''}
         <div class="bubble-text">${showDeleted ? deletedText : escapeHtml(m.content)}</div>
         <div class="bubble-meta">
           <span>${formatTime(m.created_at)}</span>
@@ -706,13 +741,7 @@ function renderDmMessages(msgs, peer){
           ${pinned ? `<span class="tick" style="color:var(--accent);margin-left:4px;">📌 pinned</span>` : ''}
         </div>
       </div>
-      ${msgId && !showDeleted && !mine ? `
-      <div class="message-actions-wrapper">
-        <button class="menu-btn" data-toggle-menu="${escapeAttr(msgId)}">⋮</button>
-        <div class="action-menu" id="menu-${escapeAttr(msgId)}">
-          ${!seen ? `<button data-mark-seen="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}">Mark seen</button>` : ''}
-        </div>
-      </div>` : ''}
+      ${!mine ? menu : ''}
     </div>`;
   }).join('');
 }
@@ -758,6 +787,12 @@ function renderGroupPane(groupId){
           </div>
         `).join('')}
       </div>` : ''}
+    </div>` : ''}
+    ${state.replyTo ? `
+    <div class="reply-indicator">
+      <span>↩ Replying to:</span>
+      <span class="reply-target">${escapeHtml(state.replyTo.content)}</span>
+      <button class="reply-cancel" id="cancelReplyBtn">✕</button>
     </div>` : ''}
     ${state.groupSettingsOpen ? renderGroupSettings(g, isAdmin, participants) : ''}
     <div class="messages" id="messagesEl">${renderGroupMessages(msgs, g)}</div>
@@ -810,6 +845,7 @@ function renderGroupMessages(msgs, g){
     const showDeleted = isDeletedForMe || isDeletedForEveryone;
     const deletedText = isDeletedForMe ? 'You deleted this message' : 'This message was deleted';
     const msgId = m.id;
+    const hasReply = m.reply_to;
     const menu = msgId && !showDeleted ? `
       <div class="message-actions-wrapper">
         <button class="menu-btn" data-toggle-menu="${escapeAttr(msgId)}">⋮</button>
@@ -817,6 +853,7 @@ function renderGroupMessages(msgs, g){
           ${isAdmin ? (pinned ? `<button data-unpin="${escapeAttr(msgId)}">Unpin</button>` : `<button data-pin="${escapeAttr(msgId)}">Pin</button>`) : ''}
           ${mine ? `<button data-delete-for-me="${escapeAttr(msgId)}">Delete for me</button>` : ''}
           ${(isAdmin || mine) ? `<button class="danger" data-delete-for-everyone="${escapeAttr(msgId)}" data-msgtype="group">Delete for everyone</button>` : ''}
+          ${!mine ? `<button data-reply="${escapeAttr(msgId)}" data-peer="${escapeAttr(m.sender_phone)}">Reply</button>` : ''}
         </div>
       </div>` : '';
 
@@ -825,6 +862,11 @@ function renderGroupMessages(msgs, g){
       ${mine ? menu : ''}
       <div class="bubble ${pending?'pending':''} ${failed?'failed':''} ${pinned?'pinned':''} ${showDeleted?'deleted':''}">
         ${!mine && !showDeleted ? `<div class="bubble-sender">${escapeHtml(m.sender_name || m.sender_phone)}</div>` : ''}
+        ${hasReply ? `
+        <div class="reply-preview" data-scroll-to="${escapeAttr(m.reply_to)}">
+          <span class="reply-author">${escapeHtml(m.reply_sender_name || m.reply_sender_phone)}</span>
+          <span>${escapeHtml(truncate(m.reply_content, 60))}</span>
+        </div>` : ''}
         <div class="bubble-text">${showDeleted ? deletedText : escapeHtml(m.content)}</div>
         <div class="bubble-meta"><span>${formatTime(m.created_at)}</span>${failed?'<span class="tick failed">failed</span>':(pending?'<span>sending…</span>':'')}
           ${mine && failed ? `<button class="retry-link" data-retry-group="${escapeAttr(m.tempmsgId||'')}" data-group="${escapeAttr(g.id)}">retry</button>` : ''}
@@ -844,6 +886,23 @@ function bindChatPane(){
       state.stickToBottom = (msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight) < 100;
     };
   }
+
+  document.getElementById('cancelReplyBtn')?.addEventListener('click', ()=>{
+    state.replyTo = null;
+    render();
+  });
+
+  document.querySelectorAll('.reply-preview').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const msgId = el.dataset.scrollTo;
+      const target = document.querySelector(`[data-msg-id="${msgId}"]`);
+      if(target){
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.style.background = 'rgba(226,162,59,0.1)';
+        setTimeout(()=> target.style.background = '', 2000);
+      }
+    });
+  });
 
   const pinMoreBtn = document.getElementById('pinMoreBtn');
   if(pinMoreBtn){
@@ -879,6 +938,18 @@ function bindChatPane(){
 
   document.querySelectorAll('[data-mark-seen]').forEach(b=>b.addEventListener('click', ()=>{
     markSeen(b.dataset.markSeen, b.dataset.peer);
+  }));
+
+  document.querySelectorAll('[data-reply]').forEach(b=>b.addEventListener('click', ()=>{
+    const msgId = b.dataset.reply;
+    const peer = b.dataset.peer;
+    const msgs = state.dmMessagesByPhone[peer] || [];
+    const m = msgs.find(x=>String(x.id)===String(msgId));
+    if(m){
+      state.replyTo = { id: m.id, content: m.content, sender_phone: m.sender_phone };
+      render();
+      document.querySelector('.composer textarea')?.focus();
+    }
   }));
 
   document.querySelectorAll('[data-delete-for-me]').forEach(b=>b.addEventListener('click', ()=>{
@@ -973,9 +1044,12 @@ function bindChatPane(){
       const content = new FormData(form).get('content').trim();
       if(!content) return;
       state.stickToBottom = true;
-      if(state.activeChat.type === 'dm') sendDmMessage(state.activeChat.phone, content);
-      else sendGroupMessage(state.activeChat.id, content);
+      const replyTo = state.replyTo ? state.replyTo.id : null;
+      if(state.activeChat.type === 'dm') sendDmMessage(state.activeChat.phone, content, replyTo);
+      else sendGroupMessage(state.activeChat.id, content, replyTo);
+      state.replyTo = null;
       ta.value=''; ta.focus();
+      render();
     });
   }
 }
@@ -998,14 +1072,23 @@ function applyLocalDelete(msgId, mode){
   if(m){ m.visibility = mode==='me' ? 'all_except_sender' : 'none'; render(); }
 }
 
-function sendDmMessage(peer, content){
+function sendDmMessage(peer, content, replyTo){
   const tempid = newTempId('dm');
-  const optimistic = { id:null, tempid, sender_phone: state.me.phone, receiver_phone: peer, content, created_at: new Date().toISOString(), status:'sending', _pending:true, visibility:'all', is_pinned:false };
+  const optimistic = { id:null, tempid, sender_phone: state.me.phone, receiver_phone: peer, content, created_at: new Date().toISOString(), status:'sending', _pending:true, visibility:'all', is_pinned:false, reply_to: replyTo || null };
+  if(replyTo){
+    const list = state.dmMessagesByPhone[peer] || [];
+    const original = list.find(x=>String(x.id)===String(replyTo));
+    if(original){
+      optimistic.reply_content = original.content;
+      optimistic.reply_sender_phone = original.sender_phone;
+      optimistic.reply_sender_name = original.sender_name || original.sender_phone;
+    }
+  }
   if(!state.dmMessagesByPhone[peer]) state.dmMessagesByPhone[peer] = [];
   state.dmMessagesByPhone[peer].push(optimistic);
   if(!state.dmMeta[peer]) state.dmMeta[peer] = { conversationId:null };
   render();
-  const sent = sendWs('chat', { sender_phonenum: state.me.phone, reciever_phonenum: peer, content, tempid });
+  const sent = sendWs('chat', { sender_phonenum: state.me.phone, reciever_phonenum: peer, content, tempid, reply_to: replyTo || null });
   if(!sent){ optimistic._pending = false; optimistic._failed = true; render(); }
 }
 
@@ -1014,18 +1097,27 @@ function retryDmMessage(peer, tempid){
   const m = list.find(x=>x.tempid===tempid);
   if(!m) return;
   m._pending = true; m._failed = false; render();
-  const sent = sendWs('chat', { sender_phonenum: state.me.phone, reciever_phonenum: peer, content: m.content, tempid });
+  const sent = sendWs('chat', { sender_phonenum: state.me.phone, reciever_phonenum: peer, content: m.content, tempid, reply_to: m.reply_to || null });
   if(!sent){ m._pending = false; m._failed = true; render(); }
 }
 
-function sendGroupMessage(groupId, content){
+function sendGroupMessage(groupId, content, replyTo){
   const g = state.groups[groupId]; if(!g) return;
   const tempmsgId = newTempId('grp');
-  const optimistic = { id:null, tempmsgId, sender_phone: state.me.phone, group_id: groupId, content, created_at: new Date().toISOString(), _pending:true, visibility:'all', is_pinned:false };
+  const optimistic = { id:null, tempmsgId, sender_phone: state.me.phone, group_id: groupId, content, created_at: new Date().toISOString(), _pending:true, visibility:'all', is_pinned:false, reply_to: replyTo || null };
+  if(replyTo){
+    const list = g.messages || [];
+    const original = list.find(x=>String(x.id)===String(replyTo));
+    if(original){
+      optimistic.reply_content = original.content;
+      optimistic.reply_sender_phone = original.sender_phone;
+      optimistic.reply_sender_name = original.sender_name || original.sender_phone;
+    }
+  }
   g.messages = g.messages || [];
   g.messages.push(optimistic);
   render();
-  const sent = sendWs('sendtoroom', { roomId: groupId, tempmsgId, sender_phone: state.me.phone, message: content });
+  const sent = sendWs('sendtoroom', { roomId: groupId, tempmsgId, sender_phone: state.me.phone, message: content, reply_to: replyTo || null });
   if(!sent){ optimistic._pending = false; optimistic._failed = true; render(); }
 }
 
@@ -1034,7 +1126,7 @@ function retryGroupMessage(groupId, tempmsgId){
   const m = (g.messages||[]).find(x=>x.tempmsgId===tempmsgId);
   if(!m) return;
   m._pending = true; m._failed = false; render();
-  const sent = sendWs('sendtoroom', { roomId: groupId, tempmsgId, sender_phone: state.me.phone, message: m.content });
+  const sent = sendWs('sendtoroom', { roomId: groupId, tempmsgId, sender_phone: state.me.phone, message: m.content, reply_to: m.reply_to || null });
   if(!sent){ m._pending = false; m._failed = true; render(); }
 }
 

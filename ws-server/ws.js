@@ -89,6 +89,7 @@ wss.on("connection", async (socket) => {
             const sender_phone = payload.data.sender_phonenum;
             const rec_phone = payload.data.reciever_phonenum;
             const tempid = payload.data.tempid;
+            const reply_to = payload.data.reply_to || null;
             const status = onlineCheck(rec_phone, mappings);
 
             const response = await pgclient.query(
@@ -103,11 +104,30 @@ wss.on("connection", async (socket) => {
             if (response.rowCount != 0) {
                 conversationId = response.rows[0].id;
 
+                let replyContent = null;
+                let replySenderPhone = null;
+                let replySenderName = null;
+
+                if (reply_to) {
+                    const replyResult = await pgclient.query(
+                        `SELECT m.content, m.sender_phone, u.name 
+                         FROM messages m
+                         JOIN users u ON m.sender_phone = u.phone_number
+                         WHERE m.id = $1`,
+                        [reply_to]
+                    );
+                    if (replyResult.rowCount > 0) {
+                        replyContent = replyResult.rows[0].content;
+                        replySenderPhone = replyResult.rows[0].sender_phone;
+                        replySenderName = replyResult.rows[0].name;
+                    }
+                }
+
                 const messageresult = await pgclient.query(
-                    `INSERT INTO messages (conversation_id, sender_phone, receiver_phone, content, status) 
-                     VALUES ($1, $2, $3, $4, $5) 
-                     RETURNING id, sender_phone, receiver_phone, content, created_at`,
-                    [conversationId, sender_phone, rec_phone, payload.data.content, status]
+                    `INSERT INTO messages (conversation_id, sender_phone, receiver_phone, content, status, reply_to, reply_content, reply_sender_phone, reply_sender_name) 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+                     RETURNING id, sender_phone, receiver_phone, content, created_at, reply_to, reply_content, reply_sender_phone, reply_sender_name`,
+                    [conversationId, sender_phone, rec_phone, payload.data.content, status, reply_to, replyContent, replySenderPhone, replySenderName]
                 );
 
                 const delivered = sendToRecipient(rec_phone, {
@@ -130,11 +150,30 @@ wss.on("connection", async (socket) => {
 
                 conversationId = newConvo.rows[0].id;
 
+                let replyContent = null;
+                let replySenderPhone = null;
+                let replySenderName = null;
+
+                if (reply_to) {
+                    const replyResult = await pgclient.query(
+                        `SELECT m.content, m.sender_phone, u.name 
+                         FROM messages m
+                         JOIN users u ON m.sender_phone = u.phone_number
+                         WHERE m.id = $1`,
+                        [reply_to]
+                    );
+                    if (replyResult.rowCount > 0) {
+                        replyContent = replyResult.rows[0].content;
+                        replySenderPhone = replyResult.rows[0].sender_phone;
+                        replySenderName = replyResult.rows[0].name;
+                    }
+                }
+
                 const messageResult = await pgclient.query(
-                    `INSERT INTO messages (conversation_id, sender_phone, receiver_phone, content, status) 
-                     VALUES ($1, $2, $3, $4, $5) 
-                     RETURNING id, conversation_id, sender_phone, receiver_phone, content, created_at`,
-                    [conversationId, sender_phone, rec_phone, payload.data.content, status]
+                    `INSERT INTO messages (conversation_id, sender_phone, receiver_phone, content, status, reply_to, reply_content, reply_sender_phone, reply_sender_name) 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+                     RETURNING id, conversation_id, sender_phone, receiver_phone, content, created_at, reply_to, reply_content, reply_sender_phone, reply_sender_name`,
+                    [conversationId, sender_phone, rec_phone, payload.data.content, status, reply_to, replyContent, replySenderPhone, replySenderName]
                 );
 
                 const delivered = sendToRecipient(rec_phone, {
@@ -150,10 +189,13 @@ wss.on("connection", async (socket) => {
             }
         } else if (topic == 'typing') {
             const rec_phone = payload.data.reciever_phonenum;
+            const convId=payload.data.convId;
             sendToRecipient(rec_phone, {
                 sender_phone: payload.data.sender_phone,
+                convId:convId,
                 event: "typing"
             }, mappings);
+
         } else if (topic == 'seen') {
             const messageId = payload.data.messageId;
             const rec_phone = payload.data.rec_phone;
@@ -231,6 +273,7 @@ wss.on("connection", async (socket) => {
             const tempmsgId = payload.data.tempmsgId;
             const sender_phone = payload.data.sender_phone;
             const content = payload.data.message;
+            const reply_to = payload.data.reply_to || null;
 
             const response = await sendtoRoom(sender_phone, roomId, content, groups, mappings);
             if (response.success) {
@@ -529,10 +572,9 @@ wss.on("connection", async (socket) => {
             }
         }
         else if(topic=='active-status'){
-            //just check if the recipient is connected to the wss
             const rec_phone=payload.data.rec_phone;
             const sock=mappings.get(rec_phone);
-            if(sock && sock.readyState==WebSocket.OPEN){//lookup what's this and why just cjecking sock would be a issue 
+            if(sock && sock.readyState==WebSocket.OPEN){
                     socket.send(JSON.stringify({
                         status:'online',
                         event:'reciever status'
@@ -546,6 +588,61 @@ wss.on("connection", async (socket) => {
                 }))
             }
            
+        }
+        else if(topic=='seenbatch'){
+            const msgIds=payload.data.msgIds;
+            const msgType=payload.data.type;
+            const rec_phone=payload.data.rec_phone;
+            const seenBy=phonelookups(socket);
+            const groupId=payload.data.groupId;
+            const recipientSocket=mappings(rec_phone)
+
+            if(msgIds){
+               for(let msgId in msgIds){
+                if(msgType=='conversation'){
+                    const msgResult= await pgclient.query(
+                        `UPDATE messages 
+                         SET status = 'seen', seen_at = NOW()
+                         WHERE id = ANY($1) AND receiver_phone = $2
+                         RETURNING id, sender_phone, conversation_id`,
+                        [msgIds, seenBy]
+                    );
+                    if(recipientSocket){//hanlding the seperation of group and conversation
+                    recipientSocket.send(JSON.stringify({
+                        event:'batchseen',
+                        payload:msgResult
+                    }))
+                }
+
+                    //send to the recipient socket all the message ids'
+                    //query in the messages using the sender phone
+                }
+                else {
+                    
+                    const msgResult = await pgclient.query(
+                        `UPDATE group_message_delivery 
+                         SET status = 'seen', seen_at = NOW()
+                         WHERE message_id = $1 AND phone_number = $2
+                         RETURNING id, message_id, phone_number, status, seen_at`,
+                        [msgId, seenBy]
+                    );
+                    const participants=groups.get(groupId);//returns a set of the participants 
+                    for(i in participants){
+                        const sock=phonelookups.get(i);
+                        if(sock==socket){//will this work?
+                            continue;//jump to the next iteration
+                        }
+                    }
+
+
+                    //need to send to all the group participants 
+
+                    //query in the indiviudal messags for each user defined in the group for this message
+                }
+               }
+            }
+
+            
         }
     });
 });

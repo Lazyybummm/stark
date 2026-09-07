@@ -120,6 +120,7 @@ export async function addtoRoom(rec_phone, roomId, groups) {
     }
 }
 
+
 export async function sendtoRoom(sender_phone, roomId, content, groups, mappings) {
     try {
         const messageResult = await pgclient.query(
@@ -129,29 +130,32 @@ export async function sendtoRoom(sender_phone, roomId, content, groups, mappings
             [roomId, sender_phone, content]
         );
         const msgId = messageResult.rows[0].id;
-        await pgclient.query(
-            `INSERT INTO group_message_delivery (message_id, phone_number, status) 
-             VALUES ($1, $2, $3)`,
-            [msgId, sender_phone, 'sent']
+
+        const participantsResult = await pgclient.query(
+            `SELECT phone_number FROM group_participants 
+             WHERE group_id = $1`,
+            [roomId]
         );
-        const participants = groups.get(roomId);
 
-        const arr = [];
+        const participants = participantsResult.rows.map(row => row.phone_number);
 
-        for (const phone of participants) {
-            if (phone == sender_phone) continue;
-
+        if (participants.length > 0) {
+            const values = participants.map(phone => `('${msgId}', '${phone}', 'sent')`).join(',');
             await pgclient.query(
                 `INSERT INTO group_message_delivery (message_id, phone_number, status) 
-                 VALUES ($1, $2, $3)`,
-                [msgId, phone, 'sent']
+                 VALUES ${values}`
             );
+        }
 
+        const arr = [];
+        for (const phone of participants) {
+            if (phone === sender_phone) continue;
             const sock = mappings.get(phone);
-            if (sock) {
+            if (sock && sock.readyState === WebSocket.OPEN) {
                 arr.push(sock);
             }
         }
+
         arr.forEach((c) => {
             c.send(JSON.stringify({
                 message: messageResult.rows[0],
@@ -172,6 +176,7 @@ export async function sendtoRoom(sender_phone, roomId, content, groups, mappings
         };
     }
 }
+
 
 export function sendToRecipient(recipientPhone, payload, mappings) {
     const sock = mappings.get(recipientPhone);

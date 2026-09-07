@@ -121,7 +121,28 @@ app.post('/getmessages', async (req, res) => {
         console.log("Fetching messages for conversation:", conversationId);
 
         const result = await pgclient.query(
-            `SELECT * FROM messages 
+            `SELECT 
+                id,
+                conversation_id,
+                sender_phone,
+                receiver_phone,
+                content,
+                status,
+                delivered_at,
+                seen_at,
+                is_pinned,
+                pinned_at,
+                pinned_by,
+                visibility,
+                deleted_by,
+                deleted_at,
+                reply_to,
+                reply_content,
+                reply_sender_phone,
+                reply_sender_name,
+                created_at,
+                updated_at
+             FROM messages 
              WHERE conversation_id = $1
              ORDER BY created_at ASC`,
             [conversationId]
@@ -213,6 +234,10 @@ app.post('/getgroupmessages', async (req, res) => {
                 m.visibility,
                 m.deleted_by,
                 m.deleted_at,
+                m.reply_to,
+                m.reply_content,
+                m.reply_sender_phone,
+                m.reply_sender_name,
                 m.created_at,
                 m.updated_at,
                 u.name as sender_name
