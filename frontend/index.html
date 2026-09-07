@@ -307,8 +307,8 @@ p{margin:0;}
     <p class="auth-err" id="authErr"></p>
     <details class="advanced">
       <summary>Server settings</summary>
-      <label>HTTP base<input id="cfgHttp" value="http://localhost:8000"></label>
-      <label>WebSocket URL<input id="cfgWs" value="ws://localhost:8080"></label>
+      <label>HTTP base<input id="cfgHttp" value="https://stark-http-server.onrender.com"></label>
+      <label>WebSocket URL<input id="cfgWs" value="wss://stark-websocket-server.onrender.com"></label>
     </details>
   </div>
 </section>
@@ -356,7 +356,7 @@ p{margin:0;}
 
 <script>
 'use strict';
-let HTTP_BASE='https://stark-http-server.onrender.com/health', WS_URL='ws://localhost:8080';
+let HTTP_BASE='https://stark-http-server.onrender.com', WS_URL='wss://stark-websocket-server.onrender.com';
 let TOKEN=null, ME=null, ws=null, reconnectTries=0, reconnectTimer=null;
 const CONVOS=new Map();   // peerPhone -> {peer,id,messages,unread,lastAt,name,pinned,status}
 const GROUPS=new Map();   // groupId -> {id,name,admin,participants:Set,messages,unread,lastAt,pinned}
