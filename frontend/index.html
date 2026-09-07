@@ -356,7 +356,7 @@ p{margin:0;}
 
 <script>
 'use strict';
-let HTTP_BASE='http://localhost:8000', WS_URL='ws://localhost:8080';
+let HTTP_BASE='https://stark-http-server.onrender.com/health', WS_URL='ws://localhost:8080';
 let TOKEN=null, ME=null, ws=null, reconnectTries=0, reconnectTimer=null;
 const CONVOS=new Map();   // peerPhone -> {peer,id,messages,unread,lastAt,name,pinned,status}
 const GROUPS=new Map();   // groupId -> {id,name,admin,participants:Set,messages,unread,lastAt,pinned}

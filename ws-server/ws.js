@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import 'dotenv/config';
 import pgclient from "../database/dbconnect.js";
 import { json } from "express";
+import http from "http";
 import {
     onlineCheck,
     removeParticipant,
@@ -18,7 +19,30 @@ import {
     deleteMessageForEveryone
 } from "./utils.js";
 
-const wss = new WebSocketServer({ port: 8080 });
+const server = http.createServer((req, res) => {
+    if (req.url === '/health' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+            status: 'OK', 
+            timestamp: new Date().toISOString(),
+            connections: wss ? wss.clients.size : 0 
+        }));
+        return;
+    }
+    
+   
+    if (req.url === '/' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('WebSocket Server is running');
+        return;
+    }
+    
+   
+    res.end('Not Found');
+});
+
+
+const wss = new WebSocketServer({ server });
 
 const mappings = new Map();
 const pubsub=new Map();
@@ -85,7 +109,7 @@ wss.on("connection", async (socket) => {
                 if(Watchers && Watchers.size>0){
                     for (let entry of Watchers){
                         const sock=mappings.get(entry);
-                        sock.send(JSON.stringif({
+                        sock.send(JSON.stringify({
                             event:'active status',
                             user:info.phone,
                             status:'online'
@@ -788,5 +812,14 @@ wss.on("connection", async (socket) => {
         }
     });
 });
+
+
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => {
+    console.log(` WebSocket server running on ws://localhost:${PORT}`);
+    console.log(`Health endpoint available at http://localhost:${PORT}/health`);
+    console.log(`Ready for Render deployment`);
+});
+
 
 console.log("WebSocket server running on ws://localhost:8080");
