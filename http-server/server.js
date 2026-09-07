@@ -13,7 +13,6 @@ app.use(cors());
 
 app.get("/health",(req,res)=>{
     res.send("the backend is up and healthy")
-    pgclient.query("")
 })
 
 

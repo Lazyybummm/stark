@@ -1,4 +1,4 @@
-import ws, { WebSocketServer } from "ws";
+import ws, {  WebSocketServer } from "ws";
 import jwt from "jsonwebtoken";
 import 'dotenv/config';
 import pgclient from "../database/dbconnect.js";
@@ -21,15 +21,45 @@ import {
 const wss = new WebSocketServer({ port: 8080 });
 
 const mappings = new Map();
+const pubsub=new Map();
 const phonelookups = new Map();
 const groups = new Map();
 groups.set('1', new Set(['1']));
+pubsub.set('111',new Set(['444']))
+
+function removeWatcherFromAllTargets(phone_number) {
+    const targetsToRemove = [];
+    for (const [target, subscribers] of pubsub) {
+        subscribers.delete(phone_number);
+        if (subscribers.size === 0) {
+            targetsToRemove.push(target);
+        }
+    }
+    for (const target of targetsToRemove) {
+        pubsub.delete(target);
+    }
+}
 
 wss.on("connection", async (socket) => {
     socket.send("connected");
-
+   
     socket.on("close", async () => {
+
         const phone_number = phonelookups.get(socket);
+        const Watchers=pubsub.get(phone_number);//see if the user was a target ->hsould return a set , the nuiane s an empty set is also truthy so we are gonna check size
+        if(Watchers && Watchers.size>0){
+            for (let entry of Watchers){
+                const sock=mappings.get(entry);
+                sock.send(JSON.stringify({
+                    event:'active status',
+                    user:phone_number,
+                    status:'offline'
+                }))
+            }
+        }
+
+        removeWatcherFromAllTargets(phone_number);//removing user as a watcher from all the targets , 
+
         const sock = mappings.get(phone_number);
         phonelookups.delete(sock);
         mappings.delete(phone_number);
@@ -40,6 +70,8 @@ wss.on("connection", async (socket) => {
         );
     });
 
+    
+
     socket.on("message", async (data) => {
         const payload = JSON.parse(data.toString('utf8'));
         const topic = payload.event;
@@ -49,6 +81,17 @@ wss.on("connection", async (socket) => {
                 const info = jwt.verify(payload.data, process.env.JWT_SECRET_KEY);
                 mappings.set(info.phone, socket);
                 phonelookups.set(socket, info.phone);
+                const Watchers=pubsub.get(info.phone)
+                if(Watchers && Watchers.size>0){
+                    for (let entry of Watchers){
+                        const sock=mappings.get(entry);
+                        sock.send(JSON.stringif({
+                            event:'active status',
+                            user:info.phone,
+                            status:'online'
+                        }))
+                    }
+                }
 
                 const response = await pgclient.query(
                     `SELECT 
@@ -588,60 +631,159 @@ wss.on("connection", async (socket) => {
                 }))
             }
            
-        }
-        else if(topic=='seenbatch'){
-            const msgIds=payload.data.msgIds;
-            const msgType=payload.data.type;
-            const rec_phone=payload.data.rec_phone;
-            const seenBy=phonelookups(socket);
-            const groupId=payload.data.groupId;
-            const recipientSocket=mappings(rec_phone)
-
-            if(msgIds){
-               for(let msgId in msgIds){
-                if(msgType=='conversation'){
-                    const msgResult= await pgclient.query(
+        }else if (topic == 'seenbatch') {
+            const msgIds = payload.data.msgIds;
+            const msgType = payload.data.type;
+            const seenBy = phonelookups.get(socket);
+        
+            if (!msgIds || msgIds.length === 0) {
+                socket.send(JSON.stringify({
+                    event: 'error',
+                    message: 'No message IDs provided'
+                }));
+                return;
+            }
+        
+            try {
+                if (msgType === 'conversation') {
+                    const result = await pgclient.query(//directly marking the status of the message and sending the event to the recipient
                         `UPDATE messages 
                          SET status = 'seen', seen_at = NOW()
                          WHERE id = ANY($1) AND receiver_phone = $2
                          RETURNING id, sender_phone, conversation_id`,
                         [msgIds, seenBy]
                     );
-                    if(recipientSocket){//hanlding the seperation of group and conversation
-                    recipientSocket.send(JSON.stringify({
-                        event:'batchseen',
-                        payload:msgResult
-                    }))
-                }
-
-                    //send to the recipient socket all the message ids'
-                    //query in the messages using the sender phone
-                }
-                else {
-                    
-                    const msgResult = await pgclient.query(
-                        `UPDATE group_message_delivery 
-                         SET status = 'seen', seen_at = NOW()
-                         WHERE message_id = $1 AND phone_number = $2
-                         RETURNING id, message_id, phone_number, status, seen_at`,
-                        [msgId, seenBy]
-                    );
-                    const participants=groups.get(groupId);//returns a set of the participants 
-                    for(i in participants){
-                        const sock=phonelookups.get(i);
-                        if(sock==socket){//will this work?
-                            continue;//jump to the next iteration
+        
+                    if (result.rowCount > 0) {
+                        const senders = [...new Set(result.rows.map(r => r.sender_phone))];
+                        for (const sender of senders) {
+                            const senderSocket = mappings.get(sender);
+                            if (senderSocket && senderSocket.readyState === WebSocket.OPEN) {
+                                const seenMsgIds = result.rows
+                                    .filter(r => r.sender_phone === sender)
+                                    .map(r => r.id);
+                                
+                                senderSocket.send(JSON.stringify({
+                                    event: 'seen_batch_success',
+                                    data: {
+                                        messageIds: seenMsgIds,
+                                        seenBy: seenBy,
+                                        seenAt: new Date().toISOString(),
+                                        msgType: 'conversation'
+                                    }
+                                }));
+                            }
                         }
                     }
-
-
-                    //need to send to all the group participants 
-
-                    //query in the indiviudal messags for each user defined in the group for this message
+        
+                } else if (msgType === 'group') {
+                    const groupResult = await pgclient.query(
+                        `SELECT DISTINCT group_id FROM messages 
+                         WHERE id = ANY($1) AND group_id IS NOT NULL`,
+                        [msgIds]
+                    );
+        
+                    if (groupResult.rowCount === 0) {
+                        socket.send(JSON.stringify({
+                            event: 'error',
+                            message: 'No group messages found'
+                        }));
+                        return;
+                    }
+        
+                    const groupId = groupResult.rows[0].group_id;
+        
+                    let updatedCount = 0;
+                    for (const msgId of msgIds) {
+                        const deliveryResult = await pgclient.query(
+                            `UPDATE group_message_delivery 
+                             SET status = 'seen', seen_at = NOW()
+                             WHERE message_id = $1 AND phone_number = $2
+                             RETURNING message_id`,
+                            [msgId, seenBy]
+                        );
+                        updatedCount += deliveryResult.rowCount;
+                    }
+        
+                    const senderResult = await pgclient.query(
+                        `SELECT DISTINCT sender_phone FROM messages 
+                         WHERE id = ANY($1)`,
+                        [msgIds]
+                    );
+        
+                    for (const row of senderResult.rows) {
+                        const senderSocket = mappings.get(row.sender_phone);
+                        if (senderSocket && senderSocket.readyState === WebSocket.OPEN) {
+                            senderSocket.send(JSON.stringify({
+                                event: 'seen_batch_success',
+                                data: {
+                                    messageIds: msgIds,
+                                    seenBy: seenBy,
+                                    seenAt: new Date().toISOString(),
+                                    msgType: 'group',
+                                    groupId: groupId,
+                                    count: updatedCount
+                                }
+                            }));
+                        }
+                    }
                 }
-               }
+        
+                socket.send(JSON.stringify({
+                    event: 'seen_batch_success',
+                    data: {
+                        messageIds: msgIds,
+                        status: 'confirmed',
+                        seenBy: seenBy,
+                        seenAt: new Date().toISOString()
+                    }
+                }));
+        
+            } catch (error) {
+                console.error('Seen batch error:', error);
+                socket.send(JSON.stringify({
+                    event: 'error',
+                    message: 'Failed to mark messages as seen: ' + error.message
+                }));
             }
-
+        }
+        else if(topic=='grouptyping'){
+            const groupId=payload.data.groupId;
+            const sender_phone=payload.data.sender_phone;
+            const participants=groups.get(groupId);//returns a set of participants
+            for(let i of participants){
+                if(i==sender_phone){continue;}
+                const sock=mappings.get(i);
+                if(sock.readyState==WebSocket.OPEN){
+                sock.send(JSON.stringify({
+                    event:'group-typing',
+                    sender_phone:sender_phone,
+                    groupId:groupId
+                }))
+            }
+            }
+        }
+        else if(topic=='subscribe'){
+            const sender_phone=phonelookups.get(socket);
+            const rec_phone=payload.data.rec_phone;
+           const subscribers=pubsub.get(rec_phone);
+           if(subscribers){
+            subscribers.add(sender_phone);
+           }
+           else{
+            pubsub.set(rec_phone, new Set([sender_phone])); 
+           }
+        }
+        else if(topic=='unsubscribe'){
+            const sender_phone=phonelookups.get(socket);
+            const rec_phone=payload.data.rec_phone;
+            const subscribers=pubsub.get(rec_phone);
+            if(subscribers){
+                subscribers.delete(sender_phone);
+                if(subscribers.size==0){
+                    pubsub.delete(rec_phone);//delete this entry to prevent memory leak ->need to look at this more 
+                }
+            }
             
         }
     });

@@ -2,1472 +2,759 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Relay — backend console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stark</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#10161A;
-    --panel:#171F24;
-    --panel-2:#1D262C;
-    --panel-3:#232E35;
-    --border:#2A363D;
-    --border-soft:#212B31;
-    --text:#E7EDEF;
-    --text-dim:#93A3AB;
-    --text-faint:#5C6E77;
-    --accent:#E2A23B;
-    --accent-ink:#1A1300;
-    --good:#5FAE84;
-    --danger:#D9614F;
-    --radius-s:4px;
-    --radius-m:8px;
-    --mono:'IBM Plex Mono', ui-monospace, monospace;
-    --sans:'Inter', -apple-system, sans-serif;
-    --serif:'Fraunces', serif;
-  }
-  *{box-sizing:border-box;}
-  html,body{height:100%;}
-  body{
-    margin:0; background:var(--bg); color:var(--text);
-    font-family:var(--sans); font-size:14px; line-height:1.5;
-    -webkit-font-smoothing:antialiased;
-  }
-  ::selection{background:var(--accent); color:var(--accent-ink);}
-  button{font-family:inherit; font-size:inherit; cursor:pointer;}
-  input, textarea, select{font-family:inherit; font-size:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-s); padding:8px 10px; outline:none; transition:border-color .12s ease;}
-  input:focus, textarea:focus, select:focus{border-color:var(--accent);}
-  input::placeholder, textarea::placeholder{color:var(--text-faint);}
-  a{color:var(--accent);}
-  .mono{font-family:var(--mono);}
-  .hidden{display:none !important;}
+:root{
+  --ink:#0d0e10; --panel:#17181b; --panel2:#1d1f23; --line:#2a2c31;
+  --text:#ece9e2; --muted:#8d8f96; --accent:#c89a5b; --accent-deep:#9c763f;
+  --danger:#c1584a; --radius:6px;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+[hidden]{display:none!important;}
+body{margin:0;background:var(--ink);color:var(--text);font:15px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
+input,textarea{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:9px 11px;outline:none;}
+input:focus,textarea:focus,button:focus-visible{border-color:var(--accent);box-shadow:0 0 0 2px rgba(200,154,91,.25);}
+h1,h2{font-family:Fraunces,serif;font-weight:500;margin:0;}
+::selection{background:rgba(200,154,91,.35);}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 
-  .shell{ display:flex; flex-direction:column; height:100vh; }
+/* ---- auth ---- */
+.auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.auth-card{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:32px;}
+.brand{font-size:28px;letter-spacing:.3px;}
+.brand.small{font-size:19px;}
+.tagline{color:var(--muted);margin:6px 0 22px;font-size:13px;}
+.tabs{display:flex;gap:2px;background:var(--panel2);border-radius:var(--radius);padding:3px;margin-bottom:18px;}
+.tabs .tab{flex:1;padding:8px;border-radius:4px;color:var(--muted);font-size:13px;}
+.tabs .tab.active{background:var(--ink);color:var(--text);}
+.auth-form{display:flex;flex-direction:column;gap:12px;}
+.auth-form label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);}
+.auth-form button[type=submit]{margin-top:6px;background:var(--accent);color:#1a1200;font-weight:600;padding:10px;border-radius:var(--radius);}
+.auth-form button[type=submit]:hover{background:var(--accent-deep);}
+.advanced{margin-top:18px;font-size:12px;color:var(--muted);}
+.advanced summary{cursor:pointer;}
+.advanced label{display:flex;flex-direction:column;gap:4px;margin-top:10px;}
+.auth-err{color:var(--danger);font-size:12px;min-height:16px;}
 
-  .topbar{
-    display:flex; align-items:center; gap:16px;
-    padding:10px 18px; border-bottom:1px solid var(--border);
-    background:var(--panel); flex-shrink:0;
-  }
-  .brand{ display:flex; align-items:baseline; gap:8px; }
-  .brand-mark{ font-family:var(--serif); font-size:20px; font-weight:600; letter-spacing:-0.01em; }
-  .brand-sub{ color:var(--text-faint); font-size:12px; }
-  .topbar-spacer{ flex:1; }
-  .conn{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--text-dim); }
-  .conn-dot{ width:7px; height:7px; border-radius:50%; background:var(--text-faint); flex-shrink:0; transition:background .2s ease, box-shadow .2s ease; }
-  .conn-dot.up{ background:var(--good); box-shadow:0 0 0 3px rgba(95,174,132,0.18); }
-  .conn-dot.down{ background:var(--danger); }
-  .conn-dot.connecting{ background:var(--accent); animation:pulse 1.1s ease-in-out infinite; }
-  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
-  .who{ font-size:12.5px; color:var(--text-dim); }
-  .who b{ color:var(--text); font-weight:600; }
-  .btn{
-    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
-    padding:7px 13px; border-radius:var(--radius-s); font-weight:500; font-size:13px;
-    transition:border-color .12s ease, background .12s ease, filter .12s ease, opacity .12s ease;
-  }
-  .btn:hover{ border-color:var(--text-faint); }
-  .btn.primary{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; }
-  .btn.primary:hover{ filter:brightness(1.06); }
-  .btn.danger{ color:var(--danger); }
-  .btn.danger.solid{ background:var(--danger); border-color:var(--danger); color:#2A0C08; }
-  .btn.danger.solid:hover{ filter:brightness(1.08); }
-  .btn.ghost{ background:transparent; border-color:transparent; color:var(--text-dim); padding:6px 10px; }
-  .btn.ghost:hover{ color:var(--text); background:var(--panel-2); }
-  .btn.small{ padding:5px 10px; font-size:12px; }
-  .btn:disabled{ opacity:.45; cursor:not-allowed; }
-  .hamburger{ display:none; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:var(--radius-s); width:34px; height:34px; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
-  .hamburger:hover{ border-color:var(--text-faint); }
+/* ---- app shell ---- */
+.app{display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:300px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;}
+.sidebar-head{display:flex;align-items:center;gap:10px;padding:16px 14px 10px;}
+.sidebar-head .brand.small{flex:1;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;}
+.dot.on{background:#5fbf77;}
+.icon-btn{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px;}
+.icon-btn:hover{background:var(--panel2);color:var(--text);}
+.search{margin:0 14px 10px;}
+.conv-list{flex:1;overflow-y:auto;}
+.conv-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-left:2px solid transparent;}
+.conv-item:hover{background:var(--panel2);}
+.conv-item.active{background:var(--panel2);border-left-color:var(--accent);}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--accent);flex:none;position:relative;}
+.avatar .presence-dot{position:absolute;right:-1px;bottom:-1px;width:9px;height:9px;border-radius:50%;background:var(--muted);border:2px solid var(--panel);}
+.avatar .presence-dot.on{background:#5fbf77;}
+.conv-meta{flex:1;min-width:0;}
+.conv-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.conv-sub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.badge{background:var(--accent);color:#1a1200;font-size:11px;font-weight:600;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px;}
 
-  .body{ flex:1; display:flex; min-height:0; position:relative; }
+.chat{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--ink);}
+.empty-state{margin:auto;text-align:center;color:var(--muted);}
+.empty-state h2{color:var(--text);margin-bottom:6px;}
+.chat-view{display:flex;flex-direction:column;height:100%;min-height:0;}
+.chat-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);flex:none;}
+.chat-head .back{display:none;}
+.peer-info{flex:1;min-width:0;}
+.peer-name{font-weight:500;display:block;}
+.peer-status{font-size:12px;color:var(--muted);}
+.pinned-bar{padding:8px 18px;background:rgba(200,154,91,.08);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--accent);display:flex;gap:8px;align-items:center;cursor:pointer;flex:none;}
+.pinned-bar span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
 
-  .sidebar{
-    width:290px; flex-shrink:0; border-right:1px solid var(--border);
-    background:var(--panel); display:flex; flex-direction:column; min-height:0;
-  }
-  .field-label{ font-size:11.5px; color:var(--text-faint); margin-bottom:5px; display:block; }
-  .field{ margin-bottom:10px; }
-  .field input{ width:100%; }
+.messages{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:3px;}
+.day-sep{align-self:center;color:var(--muted);font-size:11px;margin:14px 0 6px;}
+.msg{max-width:66%;position:relative;margin-top:6px;}
+.msg.mine{align-self:flex-end;}
+.msg.theirs{align-self:flex-start;}
+.msg .sender{font-size:11.5px;color:var(--accent);margin-bottom:2px;padding:0 3px;}
+.bubble{padding:9px 12px;border-radius:12px;font-size:14.5px;white-space:pre-wrap;word-break:break-word;background:var(--panel2);border:1px solid var(--line);}
+.msg.mine .bubble{background:#2a2216;border-color:#3b3018;}
+.msg.deleted .bubble{font-style:italic;color:var(--muted);}
+.reply-quote{border-left:2px solid var(--accent);padding:2px 8px;margin-bottom:5px;font-size:12.5px;color:var(--muted);opacity:.85;}
+.reply-quote b{color:var(--text);font-weight:500;}
+.meta-row{display:flex;gap:5px;align-items:center;margin-top:2px;padding:0 3px;font-size:10.5px;color:var(--muted);}
+.msg.mine .meta-row{justify-content:flex-end;}
+.tick{color:var(--muted);}
+.tick.seen{color:var(--accent);}
+.pin-flag{font-size:10px;color:var(--accent);}
+.kebab{position:absolute;top:-6px;width:22px;height:22px;border-radius:50%;background:var(--panel);border:1px solid var(--line);opacity:0;font-size:13px;display:flex;align-items:center;justify-content:center;color:var(--muted);}
+.msg.mine .kebab{left:-28px;}
+.msg.theirs .kebab{right:-28px;}
+.msg:hover .kebab,.kebab.open{opacity:1;}
 
-  .tabs{ display:flex; gap:2px; padding:12px 14px 0 14px; }
-  .tab{
-    flex:1; text-align:center; padding:8px 4px; font-size:12.5px; color:var(--text-dim);
-    background:transparent; border:1px solid var(--border); border-bottom:none;
-    border-radius:var(--radius-s) var(--radius-s) 0 0; transition:background .12s ease, color .12s ease;
-  }
-  .tab.active{ color:var(--text); background:var(--panel-2); }
+.typing-row{padding:0 18px 6px;font-size:12.5px;color:var(--muted);font-style:italic;flex:none;}
+.reply-bar{display:flex;align-items:center;gap:10px;padding:8px 18px;border-top:1px solid var(--line);flex:none;}
+.reply-info{flex:1;border-left:2px solid var(--accent);padding-left:8px;min-width:0;}
+.reply-info span{font-size:12px;color:var(--accent);}
+.reply-info p{margin:1px 0 0;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.composer{display:flex;gap:10px;align-items:flex-end;padding:14px 18px;border-top:1px solid var(--line);flex:none;}
+.composer textarea{flex:1;resize:none;max-height:140px;}
+.send-btn{background:var(--accent);color:#1a1200;font-weight:600;padding:10px 18px;border-radius:var(--radius);}
+.send-btn:hover{background:var(--accent-deep);}
+.send-btn:disabled{opacity:.4;cursor:default;}
 
-  .list{ flex:1; overflow-y:auto; border-top:1px solid var(--border); }
-  .list-empty{ padding:22px 16px; color:var(--text-faint); font-size:12.5px; line-height:1.6; }
-  .item{
-    display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer;
-    border-bottom:1px solid var(--border-soft); transition:background .1s ease;
-  }
-  .item:hover{ background:var(--panel-2); }
-  .item.active{ background:var(--panel-3); box-shadow:inset 2px 0 0 var(--accent); }
+/* modal + menu */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:24px;width:100%;max-width:380px;}
+.modal h2{font-size:18px;margin-bottom:14px;}
+.modal .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:12px;color:var(--muted);}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
+.btn-ghost{padding:9px 14px;border-radius:var(--radius);color:var(--muted);}
+.btn-ghost:hover{background:var(--panel2);}
+.btn-primary{padding:9px 16px;border-radius:var(--radius);background:var(--accent);color:#1a1200;font-weight:600;}
+.btn-primary:hover{background:var(--accent-deep);}
+.participant-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
+.participant-row span{flex:1;}
+.participant-row button{color:var(--danger);font-size:12px;}
+.danger-zone{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);display:flex;gap:10px;}
+.danger-zone button{font-size:12.5px;padding:8px 12px;border-radius:var(--radius);border:1px solid var(--line);}
+.danger-zone button:hover{border-color:var(--danger);color:var(--danger);}
 
-  .avatar-wrap{ position:relative; flex-shrink:0; }
-  .avatar{
-    width:32px; height:32px; border-radius:50%; flex-shrink:0;
-    background:var(--panel-3); border:1px solid var(--border);
-    display:flex; align-items:center; justify-content:center;
-    font-size:12px; font-weight:600; color:var(--text-dim);
-  }
-  .presence-dot{
-    width:9px; height:9px; border-radius:50%; background:var(--text-faint);
-    border:2px solid var(--panel); position:absolute; right:-1px; bottom:-1px;
-    transition:background .2s ease;
-  }
-  .presence-dot.online{ background:var(--good); }
-  .item-main{ min-width:0; flex:1; }
-  .item-title{ font-size:13.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .item-sub{ font-size:11.5px; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:var(--mono); }
-  .status-text{ font-size:11.5px; color:var(--text-faint); }
-  .status-text.online{ color:var(--good); font-family:var(--sans); }
+.ctx-menu{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.ctx-menu button{display:block;width:100%;text-align:left;padding:8px 10px;border-radius:5px;font-size:13px;}
+.ctx-menu button:hover{background:var(--panel2);}
+.ctx-menu button.danger{color:var(--danger);}
 
-  .newchat-form{ display:flex; gap:6px; padding:10px 14px; border-top:1px solid var(--border); }
-  .newchat-form input{ flex:1; }
+#toast-root{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;align-items:center;}
+.toast{background:var(--panel);border:1px solid var(--line);padding:10px 16px;border-radius:8px;font-size:13px;animation:up .2s ease;}
+.toast.error{border-color:var(--danger);color:var(--danger);}
+@keyframes up{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 
-  .identity{ padding:12px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
-  .identity .item-title{ font-size:14px; }
-
-  .chat{ flex:1; display:flex; flex-direction:column; min-width:0; background:var(--bg); }
-  .chat-empty{
-    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    color:var(--text-faint); gap:6px; text-align:center; padding:40px;
-  }
-  .chat-empty .em-title{ font-family:var(--serif); font-size:19px; color:var(--text-dim); }
-  .chat-empty .em-sub{ font-size:13px; max-width:360px; }
-
-  .chat-header{
-    display:flex; align-items:center; gap:12px; padding:12px 18px;
-    border-bottom:1px solid var(--border); background:var(--panel); flex-shrink:0;
-  }
-  .chat-header .item-title{ font-size:14.5px; }
-  .chat-header .item-sub{ font-size:12px; }
-  .chat-header-spacer{ flex:1; }
-
-  .pin-bar{
-    display:flex; flex-direction:column; padding:8px 18px;
-    background:rgba(226,162,59,0.08); border-bottom:1px solid var(--border);
-    font-size:12.5px; color:var(--text-dim); flex-shrink:0;
-    animation:slideDown .14s ease;
-    gap:4px;
-  }
-  @keyframes slideDown{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
-  .pin-bar b{ color:var(--accent); font-weight:600; }
-  .pin-bar .pin-text{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .pin-row{
-    display:flex; align-items:center; gap:10px;
-  }
-  .pin-row .pin-text{ font-size:12.5px; }
-  .pin-meta{ font-size:10.5px; color:var(--text-faint); flex-shrink:0; }
-  .pin-more{
-    color:var(--accent); cursor:pointer; font-size:11px; font-weight:600;
-    padding:2px 6px; border-radius:3px; background:rgba(226,162,59,0.1);
-    transition:background .1s ease;
-  }
-  .pin-more:hover{ background:rgba(226,162,59,0.18); }
-  .pin-divider{ border-top:1px solid var(--border-soft); margin:2px 0; }
-  .pin-icon{ margin-right:2px; }
-
-  .messages{ flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:3px; scroll-behavior:smooth; }
-  .bubble-row{ display:flex; align-items:flex-end; margin-bottom:2px; position:relative; animation:bubbleIn .16s ease; }
-  .bubble-row.me{ justify-content:flex-end; }
-  @keyframes bubbleIn{ from{opacity:0; transform:translateY(5px);} to{opacity:1; transform:translateY(0);} }
-  .bubble{
-    max-width:62%; padding:8px 12px; border-radius:12px; position:relative;
-    background:var(--panel-2); border:1px solid var(--border); transition:opacity .15s ease;
-  }
-  .bubble-row.me .bubble{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); border-bottom-right-radius:3px; }
-  .bubble-row:not(.me) .bubble{ border-bottom-left-radius:3px; }
-  .bubble-sender{ font-size:11px; color:var(--accent); font-weight:600; margin-bottom:2px; }
-  .bubble-row.me .bubble-sender{ display:none; }
-  .bubble-text{ font-size:13.5px; white-space:pre-wrap; word-break:break-word; }
-  .bubble-meta{ display:flex; align-items:center; gap:5px; margin-top:3px; font-size:10.5px; color:var(--text-faint); }
-  .bubble-row.me .bubble-meta{ color:rgba(26,19,0,0.6); }
-  .bubble.pending{ opacity:.6; }
-  .bubble.failed{ opacity:.85; box-shadow:0 0 0 1px var(--danger); }
-  .bubble.pinned{ box-shadow:0 0 0 1px var(--accent); }
-  .bubble.deleted{ opacity:.5; font-style:italic; color:var(--text-faint); }
-  .reply-preview{
-    border-left:2px solid var(--accent);
-    padding:3px 8px;
-    margin-bottom:4px;
-    background:var(--panel-3);
-    border-radius:3px;
-    font-size:11.5px;
-    color:var(--text-dim);
-    cursor:pointer;
-  }
-  .reply-preview:hover{ background:var(--panel-2); }
-  .reply-preview .reply-author{ color:var(--accent); font-weight:600; }
-  .tick{ font-family:var(--mono); }
-  .tick.seen{ color:var(--good); }
-  .tick.failed{ color:var(--danger); }
-  .bubble-row.me .tick.seen{ color:#1A1300; font-weight:700; }
-  .retry-link{ background:none; border:none; padding:0; margin-left:4px; color:inherit; text-decoration:underline; font-size:10.5px; cursor:pointer; }
-
-  .message-actions-wrapper{ position:relative; display:inline-flex; align-self:flex-end; margin:0 6px; flex-shrink:0; z-index:5; }
-  .menu-btn{
-    background:var(--panel-3); border:1px solid var(--border); color:var(--text-dim); font-size:14px;
-    width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    padding:0; cursor:pointer; line-height:1; transition:color .1s ease, border-color .1s ease;
-  }
-  .menu-btn:hover{ color:var(--text); border-color:var(--text-faint); }
-
-  .action-menu{
-    position:absolute; right:0; bottom:100%; margin-bottom:4px; background:var(--panel-2); border:1px solid var(--border);
-    border-radius:var(--radius-s); padding:4px 0; min-width:160px; z-index:20;
-    box-shadow:0 4px 16px rgba(0,0,0,0.4); display:none; animation:menuIn .1s ease;
-  }
-  .bubble-row.me .action-menu{ right:0; left:auto; }
-  .action-menu.open{ display:block; }
-  .action-menu button{
-    display:block; width:100%; padding:7px 14px; text-align:left;
-    background:transparent; border:none; color:var(--text); font-size:12px;
-    cursor:pointer;
-  }
-  .action-menu button:hover{ background:var(--panel-3); }
-  .action-menu button.danger{ color:var(--danger); }
-
-  .reply-indicator{
-    display:flex; align-items:center; gap:8px; padding:6px 12px;
-    background:var(--panel-2); border-top:1px solid var(--border);
-    font-size:12px; color:var(--text-dim);
-  }
-  .reply-indicator .reply-target{ flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .reply-indicator .reply-cancel{ background:none; border:none; color:var(--text-faint); cursor:pointer; font-size:14px; }
-
-  .typing-line{ padding:0 18px 6px; font-size:12px; color:var(--text-faint); font-style:italic; min-height:18px; flex-shrink:0; }
-
-  .composer{ display:flex; gap:8px; align-items:flex-end; padding:12px 18px; border-top:1px solid var(--border); background:var(--panel); flex-shrink:0; }
-  .composer textarea{ flex:1; resize:none; height:38px; max-height:120px; padding-top:9px; }
-  .composer .btn.primary{ height:38px; }
-
-  .group-panel{ border-bottom:1px solid var(--border); background:var(--panel); overflow:hidden; flex-shrink:0; animation:slideDown .14s ease; }
-  .group-panel-inner{ padding:14px 18px; display:flex; flex-wrap:wrap; gap:22px; }
-  .gp-block{ min-width:220px; }
-  .gp-block h4{ margin:0 0 8px; font-size:11.5px; text-transform:none; letter-spacing:0; color:var(--text-faint); font-weight:600; }
-  .chip-list{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
-  .chip{
-    display:flex; align-items:center; gap:6px; background:var(--panel-3); border:1px solid var(--border);
-    padding:4px 6px 4px 10px; border-radius:20px; font-size:12px; font-family:var(--mono);
-    animation:chipIn .12s ease;
-  }
-  @keyframes chipIn{ from{opacity:0; transform:scale(.9);} to{opacity:1; transform:scale(1);} }
-  .chip.admin{ border-color:var(--accent); color:var(--accent); }
-  .chip button{ background:transparent; border:none; color:var(--text-faint); font-size:14px; line-height:1; padding:0 2px; }
-  .chip button:hover{ color:var(--danger); }
-  .gp-form{ display:flex; gap:6px; }
-  .gp-form input, .gp-form select{ flex:1; }
-  .hint{ font-size:11.5px; color:var(--text-faint); }
-
-  .auth-wrap{ flex:1; display:flex; align-items:center; justify-content:center; padding:20px; }
-  .auth-card{ width:100%; max-width:380px; }
-  .auth-title{ font-family:var(--serif); font-size:26px; font-weight:600; margin:0 0 4px; }
-  .auth-sub{ color:var(--text-dim); font-size:13px; margin:0 0 22px; }
-  .auth-tabs{ display:flex; gap:2px; margin-bottom:16px; }
-  .auth-tab{ flex:1; padding:9px; text-align:center; border:1px solid var(--border); background:var(--panel); color:var(--text-dim); font-size:13px; border-radius:var(--radius-s); }
-  .auth-tab.active{ background:var(--panel-2); color:var(--text); border-color:var(--text-faint); }
-  .auth-error{ background:rgba(217,97,79,0.1); border:1px solid rgba(217,97,79,0.35); color:var(--danger); padding:9px 11px; border-radius:var(--radius-s); font-size:12.5px; margin-bottom:12px; }
-  .config-toggle{ margin-top:16px; font-size:12px; color:var(--text-faint); text-align:center; }
-  .config-toggle button{ background:none; border:none; color:var(--text-faint); text-decoration:underline; }
-  .config-box{ margin-top:12px; padding:12px; border:1px solid var(--border); border-radius:var(--radius-m); background:var(--panel); }
-
-  .toasts{ position:fixed; bottom:18px; right:18px; display:flex; flex-direction:column; gap:8px; z-index:50; }
-  .toast{
-    background:var(--panel-3); border:1px solid var(--border); border-left:3px solid var(--good);
-    padding:10px 14px; border-radius:var(--radius-s); font-size:12.5px; max-width:320px;
-    box-shadow:0 6px 20px rgba(0,0,0,0.35); animation:in .15s ease;
-  }
-  .toast.err{ border-left-color:var(--danger); }
-  .toast.info{ border-left-color:var(--text-faint); }
-  @keyframes in{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
-
-  .modal-backdrop{
-    position:fixed; inset:0; background:rgba(8,11,13,0.6); backdrop-filter:blur(2px);
-    display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;
-    animation:fadeIn .12s ease;
-  }
-  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
-  .modal-card{
-    background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-m);
-    width:100%; max-width:360px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,0.5);
-    animation:modalIn .15s ease;
-  }
-  @keyframes modalIn{ from{opacity:0; transform:scale(.96) translateY(4px);} to{opacity:1; transform:scale(1) translateY(0);} }
-  .modal-title{ font-family:var(--serif); font-size:17px; font-weight:600; margin:0 0 8px; }
-  .modal-body{ font-size:13px; color:var(--text-dim); margin:0 0 18px; line-height:1.5; }
-  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; }
-
-  ::-webkit-scrollbar{ width:9px; height:9px; }
-  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:5px; }
-  ::-webkit-scrollbar-track{ background:transparent; }
-
-  .backdrop{ display:none; }
-
-  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.001s !important; transition-duration:.001s !important; } }
-  @media (max-width: 900px){
-    .hamburger{ display:flex; }
-    .sidebar{
-      position:fixed; left:0; top:53px; bottom:0; z-index:40; box-shadow:8px 0 24px rgba(0,0,0,0.4);
-      transform:translateX(-102%); transition:transform .18s ease;
-    }
-    .sidebar.open{ transform:translateX(0); }
-    .backdrop.open{ display:block; position:fixed; inset:53px 0 0 0; background:rgba(0,0,0,0.45); z-index:39; }
-  }
+@media (max-width:780px){
+  .sidebar{position:fixed;inset:0;width:100%;z-index:5;transition:transform .2s ease;}
+  .app.show-chat .sidebar{transform:translateX(-100%);}
+  .chat{position:fixed;inset:0;transform:translateX(100%);transition:transform .2s ease;}
+  .app.show-chat .chat{transform:translateX(0);}
+  .chat-head .back{display:flex;}
+  .msg{max-width:82%;}
+}
 </style>
 </head>
 <body>
+<div id="toast-root"></div>
 
-<div class="shell" id="app"></div>
-<div class="toasts" id="toasts"></div>
+<section class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <h1 class="brand">Stark</h1>
+    <p class="tagline">Direct, private, no noise.</p>
+    <div class="tabs">
+      <button class="tab active" data-tab="login">Log in</button>
+      <button class="tab" data-tab="signup">Sign up</button>
+    </div>
+    <form id="loginForm" class="auth-form">
+      <label>Phone number<input required id="loginPhone" type="tel"></label>
+      <label>Password<input required id="loginPass" type="password"></label>
+      <button type="submit">Log in</button>
+    </form>
+    <form id="signupForm" class="auth-form" hidden>
+      <label>Name<input required id="suName" type="text"></label>
+      <label>Phone number<input required id="suPhone" type="tel"></label>
+      <label>Password<input required id="suPass" type="password"></label>
+      <button type="submit">Create account</button>
+    </form>
+    <p class="auth-err" id="authErr"></p>
+    <details class="advanced">
+      <summary>Server settings</summary>
+      <label>HTTP base<input id="cfgHttp" value="http://localhost:8000"></label>
+      <label>WebSocket URL<input id="cfgWs" value="ws://localhost:8080"></label>
+    </details>
+  </div>
+</section>
+
+<div class="app" id="app" hidden>
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <h1 class="brand small">Stark</h1>
+      <span class="dot" id="wsDot" title="connection"></span>
+      <button class="icon-btn" id="newBtn" title="New">+</button>
+    </div>
+    <input class="search" id="searchBox" placeholder="Search">
+    <div class="conv-list" id="convList"></div>
+  </aside>
+  <main class="chat">
+    <div class="empty-state" id="emptyState">
+      <h2>Select a conversation</h2>
+      <p>Or start something new.</p>
+    </div>
+    <div class="chat-view" id="chatView" hidden>
+      <header class="chat-head">
+        <button class="icon-btn back" id="backBtn">←</button>
+        <div class="peer-info">
+          <span class="peer-name" id="peerName"></span>
+          <span class="peer-status" id="peerStatus"></span>
+        </div>
+        <button class="icon-btn" id="infoBtn" title="Info">⋯</button>
+      </header>
+      <div class="pinned-bar" id="pinnedBar" hidden></div>
+      <div class="messages" id="messages"></div>
+      <div class="typing-row" id="typingRow" hidden></div>
+      <div class="reply-bar" id="replyBar" hidden>
+        <div class="reply-info"><span id="replyLabel"></span><p id="replyText"></p></div>
+        <button class="icon-btn" id="cancelReply">×</button>
+      </div>
+      <form class="composer" id="composer">
+        <textarea id="msgInput" rows="1" placeholder="Message"></textarea>
+        <button type="submit" class="send-btn" id="sendBtn">Send</button>
+      </form>
+    </div>
+  </main>
+</div>
 
 <script>
-const state = {
-  httpBase: 'http://localhost:8000',
-  wsUrl: 'ws://localhost:8080',
-  configOpen: false,
-  authTab: 'login',
-  authError: '',
-  token: null, me: { phone:null, name:null, user_id:null },
-  ws: null, wsStatus: 'down',
-  conversations: [],
-  dmMessagesByPhone: {},
-  dmMeta: {},
-  groups: {},
-  presence: {},
-  activeChat: null,
-  sidebarTab: 'chats',
-  sidebarOpen: false,
-  typingFrom: {},
-  groupSettingsOpen: false,
-  pendingSeq: 1,
-  openMenus: {},
-  modal: null,
-  stickToBottom: true,
-  pendingAdd: null,
-  pendingRemove: null,
-  pinDropdownOpen: false,
-  replyTo: null,
+'use strict';
+let HTTP_BASE='http://localhost:8000', WS_URL='ws://localhost:8080';
+let TOKEN=null, ME=null, ws=null, reconnectTries=0, reconnectTimer=null;
+const CONVOS=new Map();   // peerPhone -> {peer,id,messages,unread,lastAt,name,pinned,status}
+const GROUPS=new Map();   // groupId -> {id,name,admin,participants:Set,messages,unread,lastAt,pinned}
+const nameCache=new Map();
+const pending=new Map();  // tempid -> {type,el}
+let current=null;         // {type:'dm',peer} | {type:'group',id}
+let subscribedPeer=null;  // peer we're currently subscribed to for live presence via pub/sub
+let replyTo=null;
+let seenObserver=null, pendingSeen=new Set(), seenFlushTimer=null;
+let typingLastSent=0, typingStopTimer=null, peerTypingTimer=null;
+
+const $=s=>document.querySelector(s);
+const esc=s=>(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtTime=d=>new Date(d).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+function toast(msg,type=''){const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;$('#toast-root').appendChild(t);setTimeout(()=>t.remove(),3200);}
+function decodeJWT(t){try{const p=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');return JSON.parse(decodeURIComponent(atob(p).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join('')));}catch(e){return{};}}
+async function api(path,body){
+  const res=await fetch(HTTP_BASE+path,{method:'POST',headers:{'Content-Type':'application/json',token:TOKEN||''},body:JSON.stringify(body||{})});
+  const raw=await res.text();
+  let data; try{data=JSON.parse(raw);}catch(e){data=raw;}
+  return {ok:res.ok,data};
+}
+
+/* ---------- auth ---------- */
+document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  tab.classList.add('active');
+  $('#loginForm').hidden=tab.dataset.tab!=='login';
+  $('#signupForm').hidden=tab.dataset.tab!=='signup';
+  $('#authErr').textContent='';
+});
+$('#signupForm').onsubmit=async e=>{
+  e.preventDefault();
+  HTTP_BASE=$('#cfgHttp').value.trim(); WS_URL=$('#cfgWs').value.trim();
+  $('#authErr').textContent='';
+  try{
+    const {ok,data}=await api('/signup',{name:$('#suName').value.trim(),phone:$('#suPhone').value.trim(),password:$('#suPass').value});
+    if(ok){toast('Account created — log in'); $('.tab[data-tab=login]').click(); $('#loginPhone').value=$('#suPhone').value;}
+    else $('#authErr').textContent=typeof data==='string'?data:(data&&data.message)||'Signup failed';
+  }catch(err){
+    console.error(err);
+    $('#authErr').textContent='Could not reach '+HTTP_BASE+' — check the server is running and CORS/URL settings.';
+  }
+};
+$('#loginForm').onsubmit=async e=>{
+  e.preventDefault();
+  HTTP_BASE=$('#cfgHttp').value.trim(); WS_URL=$('#cfgWs').value.trim();
+  $('#authErr').textContent='';
+  try{
+    const {ok,data}=await api('/login',{phone:$('#loginPhone').value.trim(),password:$('#loginPass').value});
+    if(ok && data && data.token){TOKEN=data.token; ME=decodeJWT(TOKEN); enterApp();}
+    else $('#authErr').textContent=typeof data==='string'?data:(data&&data.message)||'Login failed';
+  }catch(err){
+    console.error(err);
+    $('#authErr').textContent='Could not reach '+HTTP_BASE+' — check the server is running and CORS/URL settings.';
+  }
 };
 
-let reconnectAttempts = 0;
-let reconnectTimer = null;
-let lastTypingSentAt = 0;
+async function enterApp(){
+  $('#authScreen').hidden=true; $('#app').hidden=false;
+  connectWS();
+  try{
+    const {ok,data}=await api('/myconversation');
+    if(ok && Array.isArray(data)){
+      data.forEach(row=>{
+        const peer=row.user1_phone===ME.phone?row.user2_phone:row.user1_phone;
+        CONVOS.set(peer,{peer,id:row.id,messages:[],unread:0,lastAt:row.last_message_at,name:null,status:'offline'});
+      });
+    }
+  }catch(err){console.error(err); toast('Could not load conversations','error');}
+  renderSidebar();
+}
 
-function newTempId(prefix){ return prefix + '_' + (state.pendingSeq++) + '_' + Math.random().toString(36).slice(2,7); }
+/* ---------- websocket ---------- */
+function connectWS(){
+  clearTimeout(reconnectTimer);
+  ws=new WebSocket(WS_URL);
+  ws.onopen=()=>{reconnectTries=0; setDot(true); ws.send(JSON.stringify({event:'auth',data:TOKEN})); if(current&&current.type==='dm') queryActiveStatus(current.peer);};
+  ws.onclose=()=>{setDot(false); if(TOKEN){reconnectTries++; reconnectTimer=setTimeout(connectWS,Math.min(1000*reconnectTries,8000));}};
+  ws.onerror=()=>{};
+  ws.onmessage=e=>handleMessage(e.data);
+}
+function setDot(on){$('#wsDot').classList.toggle('on',on);}
+function wsSend(obj){if(ws&&ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify(obj));}
 
-function render(){
-  const app = document.getElementById('app');
-  if(!state.token){
-    app.innerHTML = renderAuthScreen();
-    bindAuthScreen();
+function handleMessage(raw){
+  let msg; try{msg=JSON.parse(raw);}catch(e){return;}
+  const ev=msg.event;
+  if(!ev){
+    if(msg.tempid!==undefined) return handleAck(msg);
     return;
   }
-  app.innerHTML = renderTopbar()
-    + `<div class="body">${renderSidebar()}<div class="backdrop ${state.sidebarOpen?'open':''}" id="sidebarBackdrop"></div>${renderChatPane()}</div>`
-    + renderModal();
-  bindTopbar(); bindSidebar(); bindChatPane(); bindModal();
-}
-
-function askConfirm({title, body, confirmLabel='Confirm', danger=false, onConfirm}){
-  state.modal = {title, body, confirmLabel, danger, onConfirm};
-  render();
-}
-function closeModal(){ state.modal = null; render(); }
-function renderModal(){
-  if(!state.modal) return '';
-  const m = state.modal;
-  return `<div class="modal-backdrop" id="modalBackdrop">
-    <div class="modal-card">
-      <h3 class="modal-title">${escapeHtml(m.title)}</h3>
-      <p class="modal-body">${escapeHtml(m.body)}</p>
-      <div class="modal-actions">
-        <button class="btn ghost small" id="modalCancel">Cancel</button>
-        <button class="btn small ${m.danger ? 'danger solid' : 'primary'}" id="modalConfirm">${escapeHtml(m.confirmLabel)}</button>
-      </div>
-    </div>
-  </div>`;
-}
-function bindModal(){
-  document.getElementById('modalBackdrop')?.addEventListener('click', (e)=>{ if(e.target.id==='modalBackdrop') closeModal(); });
-  document.getElementById('modalCancel')?.addEventListener('click', closeModal);
-  document.getElementById('modalConfirm')?.addEventListener('click', ()=>{
-    const fn = state.modal?.onConfirm;
-    closeModal();
-    if(fn) fn();
-  });
-  if(state.modal){
-    const onKey = (e)=>{ if(e.key==='Escape'){ closeModal(); document.removeEventListener('keydown', onKey); } };
-    document.addEventListener('keydown', onKey);
-  }
-}
-
-function renderAuthScreen(){
-  return `
-  <div class="topbar">
-    <div class="brand"><span class="brand-mark">Relay</span><span class="brand-sub">backend console</span></div>
-    <div class="topbar-spacer"></div>
-    <div class="conn"><span class="conn-dot ${state.wsStatus==='up'?'up':(state.wsStatus==='connecting'?'connecting':'down')}"></span>${escapeHtml(state.httpBase)}</div>
-  </div>
-  <div class="auth-wrap">
-    <div class="auth-card">
-      <h1 class="auth-title">Sign in to Relay</h1>
-      <p class="auth-sub">Talks directly to your Express + WebSocket backend.</p>
-      <div class="auth-tabs">
-        <button class="auth-tab ${state.authTab==='login'?'active':''}" data-tab="login">Log in</button>
-        <button class="auth-tab ${state.authTab==='signup'?'active':''}" data-tab="signup">Sign up</button>
-      </div>
-      ${state.authError ? `<div class="auth-error">${escapeHtml(state.authError)}</div>` : ''}
-      ${state.authTab==='login' ? `
-        <form id="loginForm">
-          <div class="field"><span class="field-label">Phone number</span><input class="mono" name="phone" placeholder="+91 98xxxxxx" value="${escapeAttr(state._prefillPhone||'')}" required></div>
-          <div class="field"><span class="field-label">Password</span><input type="password" name="password" placeholder="••••••••" required></div>
-          <button class="btn primary" style="width:100%" type="submit" id="loginSubmit">Log in</button>
-        </form>
-      ` : `
-        <form id="signupForm">
-          <div class="field"><span class="field-label">Name</span><input name="name" placeholder="Ada Lovelace" required></div>
-          <div class="field"><span class="field-label">Phone number</span><input class="mono" name="phone" placeholder="+91 98xxxxxx" required></div>
-          <div class="field"><span class="field-label">Password</span><input type="password" name="password" placeholder="••••••••" required></div>
-          <button class="btn primary" style="width:100%" type="submit" id="signupSubmit">Create account</button>
-        </form>
-      `}
-      <div class="config-toggle"><button id="toggleConfig">${state.configOpen?'Hide':'Server settings'}</button></div>
-      ${state.configOpen ? `
-        <div class="config-box">
-          <div class="field"><span class="field-label">HTTP base URL</span><input class="mono" id="cfgHttp" value="${escapeHtml(state.httpBase)}"></div>
-          <div class="field" style="margin-bottom:0"><span class="field-label">WebSocket URL</span><input class="mono" id="cfgWs" value="${escapeHtml(state.wsUrl)}"></div>
-        </div>
-      ` : ''}
-    </div>
-  </div>`;
-}
-
-function bindAuthScreen(){
-  document.querySelectorAll('.auth-tab').forEach(t=>t.addEventListener('click', ()=>{ state.authTab = t.dataset.tab; state.authError=''; render(); }));
-  document.getElementById('toggleConfig')?.addEventListener('click', ()=>{ state.configOpen = !state.configOpen; render(); });
-  document.getElementById('cfgHttp')?.addEventListener('change', e=> state.httpBase = e.target.value.trim());
-  document.getElementById('cfgWs')?.addEventListener('change', e=> state.wsUrl = e.target.value.trim());
-  document.getElementById('loginForm')?.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const btn = document.getElementById('loginSubmit');
-    btn.disabled = true; btn.textContent = 'Signing in…';
-    await doLogin(fd.get('phone').trim(), fd.get('password'));
-  });
-  document.getElementById('signupForm')?.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const btn = document.getElementById('signupSubmit');
-    btn.disabled = true; btn.textContent = 'Creating…';
-    await doSignup(fd.get('name').trim(), fd.get('phone').trim(), fd.get('password'));
-  });
-}
-
-async function doSignup(name, phone, password){
-  state.authError='';
-  const {ok, data, raw} = await httpCall('POST', '/signup', {name, phone, password});
-  if(ok){ toast('Account created — log in to continue.', 'good'); state.authTab='login'; state._prefillPhone = phone; render(); }
-  else { state.authError = extractErrorText(data, raw) || 'Signup failed.'; render(); }
-}
-
-async function doLogin(phone, password){
-  state.authError='';
-  const {ok, data} = await httpCall('POST', '/login', {phone, password});
-  if(ok && data?.token){
-    state.token = data.token;
-    const claims = decodeJwt(data.token);
-    state.me = { phone: claims.phone || phone, name: claims.name || null, user_id: claims.user_id || null };
-    toast('Logged in as ' + (state.me.name || state.me.phone), 'good');
-    connectWs();
-    await loadConversations();
-    render();
-  } else {
-    state.authError = 'Login failed — check phone and password.';
-    render();
-  }
-}
-
-function extractErrorText(data, raw){
-  if(data && typeof data === 'object'){
-    if(typeof data.message === 'string' && data.message.toLowerCase() !== 'error occured') return data.message;
-    if(data.error) return typeof data.error === 'string' ? data.error : (data.error.message || JSON.stringify(data.error));
-  }
-  if(typeof raw === 'string' && raw) return raw;
-  return '';
-}
-
-function logout(){
-  state.token = null;
-  if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
-  if(state.ws) try{ state.ws.close(); }catch(e){}
-  Object.assign(state, {
-    me:{phone:null,name:null,user_id:null}, ws:null, wsStatus:'down',
-    conversations:[], dmMessagesByPhone:{}, dmMeta:{}, groups:{}, presence:{},
-    activeChat:null, openMenus:{}, sidebarOpen:false, modal:null,
-  });
-  render();
-}
-
-function decodeJwt(token){
-  try{
-    const payload = token.split('.')[1];
-    const json = decodeURIComponent(atob(payload.replace(/-/g,'+').replace(/_/g,'/')).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-    return JSON.parse(json);
-  }catch(e){ return {}; }
-}
-
-function renderTopbar(){
-  const dotClass = state.wsStatus==='up' ? 'up' : (state.wsStatus==='connecting' ? 'connecting' : 'down');
-  const label = state.wsStatus==='up' ? 'live' : (state.wsStatus==='connecting' ? 'connecting…' : 'disconnected');
-  return `
-  <div class="topbar">
-    <button class="hamburger" id="btnHamburger" aria-label="Toggle menu">☰</button>
-    <div class="brand"><span class="brand-mark">Relay</span><span class="brand-sub">backend console</span></div>
-    <div class="conn"><span class="conn-dot ${dotClass}"></span>${label} — <span class="mono">${escapeHtml(state.wsUrl)}</span></div>
-    <div class="topbar-spacer"></div>
-    <div class="who">signed in as <b>${escapeHtml(state.me.name || state.me.phone)}</b> <span class="mono">${escapeHtml(state.me.phone||'')}</span></div>
-    <button class="btn ghost small" id="btnReconnect">Reconnect</button>
-    <button class="btn small" id="btnLogout">Log out</button>
-  </div>`;
-}
-
-function bindTopbar(){
-  document.getElementById('btnReconnect')?.addEventListener('click', ()=>{ reconnectAttempts = 0; connectWs(); });
-  document.getElementById('btnLogout')?.addEventListener('click', logout);
-  document.getElementById('btnHamburger')?.addEventListener('click', ()=>{ state.sidebarOpen = !state.sidebarOpen; render(); });
-  document.getElementById('sidebarBackdrop')?.addEventListener('click', ()=>{ state.sidebarOpen = false; render(); });
-}
-
-function avatarWithPresence(label, phone){
-  const status = phone ? state.presence[phone] : null;
-  const dot = status ? `<span class="presence-dot ${status==='online'?'online':''}"></span>` : '';
-  return `<div class="avatar-wrap"><div class="avatar">${initials(label)}</div>${dot}</div>`;
-}
-
-function renderSidebar(){
-  const chats = state.conversations.slice().sort((a,b)=> new Date(b.last_message_at||0) - new Date(a.last_message_at||0));
-  const groupList = Object.values(state.groups);
-  return `
-  <div class="sidebar ${state.sidebarOpen?'open':''}">
-    <div class="identity">
-      <div class="avatar">${initials(state.me.name||state.me.phone)}</div>
-      <div class="item-main"><div class="item-title">${escapeHtml(state.me.name||'—')}</div><div class="item-sub">${escapeHtml(state.me.phone||'')}</div></div>
-    </div>
-    <div class="tabs">
-      <button class="tab ${state.sidebarTab==='chats'?'active':''}" data-tab="chats">Chats</button>
-      <button class="tab ${state.sidebarTab==='groups'?'active':''}" data-tab="groups">Groups</button>
-    </div>
-    ${state.sidebarTab==='chats' ? `
-      <form class="newchat-form" id="newChatForm">
-        <input class="mono" name="phone" placeholder="Message a phone number…" required>
-        <button class="btn small" type="submit">Open</button>
-      </form>
-      <div class="list">${chats.length===0 && !hasAdHocChats() ? `<div class="list-empty">No conversations yet — open one above.</div>` : renderChatItems(chats)}</div>
-    ` : `
-      <form class="newchat-form" id="newGroupForm">
-        <input name="name" placeholder="New group name…" required>
-        <button class="btn small" type="submit">Create</button>
-      </form>
-      <div class="list">${groupList.length===0 ? `<div class="list-empty">No groups yet — create one above.</div>` : groupList.map(g=>`
-        <div class="item ${state.activeChat?.type==='group' && state.activeChat.id===g.id ? 'active':''} ${g._pending?'pending':''}" data-open-group="${escapeAttr(g.id)}">
-          <div class="avatar">${initials(g.group_name)}</div>
-          <div class="item-main">
-            <div class="item-title">${escapeHtml(g.group_name)}${g._pending?' (creating…)':''}</div>
-            <div class="item-sub">${(g.participants?.size||0)} members${g.admin_phone===state.me.phone?' · admin':''}</div>
-          </div>
-        </div>
-      `).join('')}</div>
-    `}
-  </div>`;
-}
-
-function hasAdHocChats(){
-  return Object.keys(state.dmMeta).some(p => !state.conversations.some(c => c.user1_phone===p || c.user2_phone===p));
-}
-
-function renderChatItems(chats){
-  const known = new Set();
-  let html = '';
-  chats.forEach(c=>{
-    const peer = c.user1_phone === state.me.phone ? c.user2_phone : c.user1_phone;
-    known.add(peer);
-    html += chatItemHtml(peer, c.id);
-  });
-  Object.keys(state.dmMeta).forEach(peer=>{
-    if(!known.has(peer)) html += chatItemHtml(peer, state.dmMeta[peer].conversationId);
-  });
-  return html;
-}
-function chatItemHtml(peer, conversationId){
-  const active = state.activeChat?.type==='dm' && state.activeChat.phone===peer;
-  const msgs = state.dmMessagesByPhone[peer] || [];
-  const last = msgs[msgs.length-1];
-  return `<div class="item ${active?'active':''}" data-open-dm="${escapeAttr(peer)}" data-cid="${escapeAttr(conversationId||'')}">
-    ${avatarWithPresence(peer, peer)}
-    <div class="item-main"><div class="item-title mono">${escapeHtml(peer)}</div><div class="item-sub">${last ? escapeHtml(truncate(last.content,34)) : 'no messages'}</div></div>
-  </div>`;
-}
-
-function bindSidebar(){
-  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>{ state.sidebarTab = t.dataset.tab; render(); }));
-  document.getElementById('newChatForm')?.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const phone = new FormData(e.target).get('phone').trim();
-    if(phone) openDm(phone);
-  });
-  document.getElementById('newGroupForm')?.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const name = new FormData(e.target).get('name').trim();
-    if(name){ createRoom(name); e.target.reset(); }
-  });
-  document.querySelectorAll('[data-open-dm]').forEach(el=>el.addEventListener('click', async ()=>{
-    state.sidebarOpen = false;
-    await openDm(el.dataset.openDm, el.dataset.cid || null);
-  }));
-  document.querySelectorAll('[data-open-group]').forEach(el=>el.addEventListener('click', ()=>{
-    state.activeChat = { type:'group', id: el.dataset.openGroup };
-    state.groupSettingsOpen = false;
-    state.sidebarOpen = false;
-    state.stickToBottom = true;
-    render();
-  }));
-}
-
-async function openDm(phone, conversationId){
-  if(!state.dmMeta[phone]) state.dmMeta[phone] = { conversationId: conversationId || null };
-  if(conversationId) state.dmMeta[phone].conversationId = conversationId;
-  state.activeChat = { type:'dm', phone };
-  state.stickToBottom = true;
-  render();
-  if(state.presence[phone] === undefined) sendWs('active-status', { rec_phone: phone });
-  if(state.dmMeta[phone].conversationId && !state.dmMessagesByPhone[phone]){
-    await loadDmMessages(phone, state.dmMeta[phone].conversationId);
-  }
-}
-
-async function loadConversations(){
-  const {ok, data} = await httpCall('POST', '/myconversation', {}, true);
-  state.conversations = (ok && Array.isArray(data)) ? data : [];
-  render();
-}
-
-async function loadDmMessages(peer, conversationId){
-  const {ok, data} = await httpCall('POST', '/getmessages', { conversationId }, true);
-  if(ok && data?.messages) state.dmMessagesByPhone[peer] = data.messages;
-  render();
-}
-
-async function loadGroupMessages(groupId){
-  const {ok, data} = await httpCall('POST', '/getgroupmessages', { groupId }, true);
-  if(ok && data?.messages && state.groups[groupId]) state.groups[groupId].messages = data.messages;
-  render();
-}
-
-function renderChatPane(){
-  if(!state.activeChat) return `<div class="chat"><div class="chat-empty"><div class="em-title">Nothing open</div><div class="em-sub">Pick a conversation or group on the left.</div></div></div>`;
-  if(state.activeChat.type === 'dm') return renderDmPane(state.activeChat.phone);
-  return renderGroupPane(state.activeChat.id);
-}
-
-function renderDmPane(peer){
-  const msgs = state.dmMessagesByPhone[peer] || [];
-  const status = state.presence[peer];
-  const statusLabel = status === 'online' ? 'online' : (status === 'offline' ? 'offline' : 'direct message');
-  return `
-  <div class="chat">
-    <div class="chat-header">
-      ${avatarWithPresence(peer, peer)}
-      <div class="item-main"><div class="item-title mono">${escapeHtml(peer)}</div><div class="item-sub status-text ${status==='online'?'online':''}">${statusLabel}</div></div>
-      <div class="chat-header-spacer"></div>
-    </div>
-    ${state.replyTo ? `
-    <div class="reply-indicator">
-      <span>↩ Replying to:</span>
-      <span class="reply-target">${escapeHtml(state.replyTo.content)}</span>
-      <button class="reply-cancel" id="cancelReplyBtn">✕</button>
-    </div>` : ''}
-    <div class="messages" id="messagesEl">${renderDmMessages(msgs, peer)}</div>
-    <div class="typing-line" id="typingLine">${state.typingFrom[peer] ? escapeHtml(peer) + ' is typing…' : ''}</div>
-    <form class="composer" id="composerForm">
-      <textarea name="content" placeholder="Message ${peer}" required></textarea>
-      <button class="btn primary" type="submit">Send</button>
-    </form>
-  </div>`;
-}
-
-function renderDmMessages(msgs, peer){
-  if(msgs.length===0) return `<div class="list-empty">No messages yet.</div>`;
-  return msgs.map(m=>{
-    const mine = m.sender_phone === state.me.phone;
-    const pending = m._pending;
-    const failed = m._failed;
-    const seen = m.status === 'seen';
-    const isDeletedForMe = m.visibility === 'all_except_sender' && m.sender_phone === state.me.phone;
-    const isDeletedForEveryone = m.visibility === 'none';
-    const showDeleted = isDeletedForMe || isDeletedForEveryone;
-    const deletedText = isDeletedForMe ? 'You deleted this message' : 'This message was deleted';
-    const pinned = m.is_pinned === true;
-    const msgId = m.id;
-    const hasReply = m.reply_to;
-    const menu = msgId && !showDeleted ? `
-      <div class="message-actions-wrapper">
-        <button class="menu-btn" data-toggle-menu="${escapeAttr(msgId)}">⋮</button>
-        <div class="action-menu" id="menu-${escapeAttr(msgId)}">
-          ${mine ? `<button data-delete-for-me="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}">Delete for me</button>` : ''}
-          ${mine ? `<button class="danger" data-delete-for-everyone="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}" data-msgtype="conversation">Delete for everyone</button>` : ''}
-          ${!mine ? `<button data-reply="${escapeAttr(msgId)}" data-peer="${escapeAttr(peer)}">Reply</button>` : ''}
-        </div>
-      </div>` : '';
-
-    return `
-    <div class="bubble-row ${mine?'me':''}">
-      ${mine ? menu : ''}
-      <div class="bubble ${pending?'pending':''} ${failed?'failed':''} ${pinned?'pinned':''} ${showDeleted?'deleted':''}">
-        ${hasReply ? `
-        <div class="reply-preview" data-scroll-to="${escapeAttr(m.reply_to)}">
-          <span class="reply-author">${escapeHtml(m.reply_sender_name || m.reply_sender_phone)}</span>
-          <span>${escapeHtml(truncate(m.reply_content, 60))}</span>
-        </div>` : ''}
-        <div class="bubble-text">${showDeleted ? deletedText : escapeHtml(m.content)}</div>
-        <div class="bubble-meta">
-          <span>${formatTime(m.created_at)}</span>
-          ${mine && !showDeleted ? `<span class="tick ${seen?'seen':''} ${failed?'failed':''}">${failed?'failed to send':(pending?'sending…':(seen?'✓✓ seen':(m.status==='delivered'?'✓✓':'✓')))}</span>` : ''}
-          ${mine && failed ? `<button class="retry-link" data-retry-dm="${escapeAttr(m.tempid||'')}" data-peer="${escapeAttr(peer)}">retry</button>` : ''}
-          ${pinned ? `<span class="tick" style="color:var(--accent);margin-left:4px;">📌 pinned</span>` : ''}
-        </div>
-      </div>
-      ${!mine ? menu : ''}
-    </div>`;
-  }).join('');
-}
-
-function renderGroupPane(groupId){
-  const g = state.groups[groupId];
-  if(!g) return `<div class="chat"><div class="chat-empty"><div class="em-title">Group not loaded</div></div></div>`;
-  const msgs = g.messages || [];
-  const isAdmin = g.admin_phone === state.me.phone;
-  const participants = Array.from(g.participants || []);
-  const pinnedMsgs = (msgs || []).filter(m => m.is_pinned === true);
-  const latestPin = pinnedMsgs.length > 0 ? pinnedMsgs[0] : null;
-  const hasMore = pinnedMsgs.length > 1;
-
-  return `
-  <div class="chat">
-    <div class="chat-header">
-      <div class="avatar">${initials(g.group_name)}</div>
-      <div class="item-main"><div class="item-title">${escapeHtml(g.group_name)}</div><div class="item-sub">${participants.length} members${isAdmin?' · admin':''}</div></div>
-      <div class="chat-header-spacer"></div>
-      <button class="btn ghost small" id="btnLoadGroupHistory">Load history</button>
-      <button class="btn ghost small" id="btnToggleGroupSettings">${state.groupSettingsOpen?'Hide members':'Members'}</button>
-      ${isAdmin ? `<button class="btn danger small" id="btnDeleteGroup">Delete group</button>` : ''}
-    </div>
-    ${latestPin ? `
-    <div class="pin-bar" id="pinBar">
-      <div class="pin-row">
-        <span class="pin-icon">📌</span>
-        <span class="pin-text">${escapeHtml(latestPin.content)}</span>
-        <span class="pin-meta">— ${escapeHtml(latestPin.sender_name || latestPin.sender_phone)} · ${formatTime(latestPin.pinned_at)}</span>
-        ${hasMore ? `<span class="pin-more" id="pinMoreBtn">+${pinnedMsgs.length - 1} more</span>` : ''}
-        ${isAdmin ? `<button class="btn ghost small" id="btnUnpinAll" style="font-size:10px;padding:2px 6px;">Unpin all</button>` : ''}
-      </div>
-      ${hasMore ? `
-      <div class="pin-divider"></div>
-      <div class="pin-dropdown" id="pinDropdown" style="display:${state.pinDropdownOpen ? 'flex' : 'none'};flex-direction:column;gap:4px;">
-        ${pinnedMsgs.slice(1).map(m => `
-          <div class="pin-row">
-            <span class="pin-icon" style="font-size:10px;">📌</span>
-            <span class="pin-text" style="font-size:12px;">${escapeHtml(m.content)}</span>
-            <span class="pin-meta" style="font-size:10px;">— ${escapeHtml(m.sender_name || m.sender_phone)} · ${formatTime(m.pinned_at)}</span>
-            ${isAdmin ? `<button class="btn ghost small" data-unpin="${escapeAttr(m.id)}" style="font-size:9px;padding:1px 4px;">Unpin</button>` : ''}
-          </div>
-        `).join('')}
-      </div>` : ''}
-    </div>` : ''}
-    ${state.replyTo ? `
-    <div class="reply-indicator">
-      <span>↩ Replying to:</span>
-      <span class="reply-target">${escapeHtml(state.replyTo.content)}</span>
-      <button class="reply-cancel" id="cancelReplyBtn">✕</button>
-    </div>` : ''}
-    ${state.groupSettingsOpen ? renderGroupSettings(g, isAdmin, participants) : ''}
-    <div class="messages" id="messagesEl">${renderGroupMessages(msgs, g)}</div>
-    <div class="typing-line"></div>
-    <form class="composer" id="composerForm">
-      <textarea name="content" placeholder="Message ${escapeAttrText(g.group_name)}" required></textarea>
-      <button class="btn primary" type="submit">Send</button>
-    </form>
-  </div>`;
-}
-
-function renderGroupSettings(g, isAdmin, participants){
-  return `
-  <div class="group-panel"><div class="group-panel-inner">
-    <div class="gp-block">
-      <h4>Members (${participants.length})</h4>
-      <div class="chip-list">${participants.map(p=>`
-        <div class="chip ${p===g.admin_phone?'admin':''}">${escapeHtml(p)}${p===g.admin_phone?' · admin':''}
-          ${isAdmin && p!==g.admin_phone ? `<button data-remove-member="${escapeAttr(p)}">✕</button>` : ''}
-        </div>`).join('')}</div>
-      ${isAdmin ? `
-      <form class="gp-form" id="addMemberForm">
-        <input class="mono" name="phone" placeholder="Phone to add" required>
-        <button class="btn small" type="submit">Add</button>
-      </form>` : `<div class="hint">Only admin can add/remove members.</div>`}
-    </div>
-    <div class="gp-block">
-      <h4>Leave group</h4>
-      <form class="gp-form" id="leaveGroupForm">
-        <select name="newAdmin">
-          <option value="">No new admin</option>
-          ${participants.filter(p=>p!==state.me.phone).map(p=>`<option value="${escapeAttr(p)}">Hand admin to ${escapeAttrText(p)}</option>`).join('')}
-        </select>
-        <button class="btn small danger" type="submit">Leave</button>
-      </form>
-    </div>
-  </div></div>`;
-}
-
-function renderGroupMessages(msgs, g){
-  if(msgs.length===0) return `<div class="list-empty">No messages loaded.</div>`;
-  const isAdmin = g.admin_phone === state.me.phone;
-  return msgs.map(m=>{
-    const mine = m.sender_phone === state.me.phone;
-    const pending = m._pending;
-    const failed = m._failed;
-    const pinned = m.is_pinned === true;
-    const isDeletedForMe = m.visibility === 'all_except_sender' && m.sender_phone === state.me.phone;
-    const isDeletedForEveryone = m.visibility === 'none';
-    const showDeleted = isDeletedForMe || isDeletedForEveryone;
-    const deletedText = isDeletedForMe ? 'You deleted this message' : 'This message was deleted';
-    const msgId = m.id;
-    const hasReply = m.reply_to;
-    const menu = msgId && !showDeleted ? `
-      <div class="message-actions-wrapper">
-        <button class="menu-btn" data-toggle-menu="${escapeAttr(msgId)}">⋮</button>
-        <div class="action-menu" id="menu-${escapeAttr(msgId)}">
-          ${isAdmin ? (pinned ? `<button data-unpin="${escapeAttr(msgId)}">Unpin</button>` : `<button data-pin="${escapeAttr(msgId)}">Pin</button>`) : ''}
-          ${mine ? `<button data-delete-for-me="${escapeAttr(msgId)}">Delete for me</button>` : ''}
-          ${(isAdmin || mine) ? `<button class="danger" data-delete-for-everyone="${escapeAttr(msgId)}" data-msgtype="group">Delete for everyone</button>` : ''}
-          ${!mine ? `<button data-reply="${escapeAttr(msgId)}" data-peer="${escapeAttr(m.sender_phone)}">Reply</button>` : ''}
-        </div>
-      </div>` : '';
-
-    return `
-    <div class="bubble-row ${mine?'me':''}">
-      ${mine ? menu : ''}
-      <div class="bubble ${pending?'pending':''} ${failed?'failed':''} ${pinned?'pinned':''} ${showDeleted?'deleted':''}">
-        ${!mine && !showDeleted ? `<div class="bubble-sender">${escapeHtml(m.sender_name || m.sender_phone)}</div>` : ''}
-        ${hasReply ? `
-        <div class="reply-preview" data-scroll-to="${escapeAttr(m.reply_to)}">
-          <span class="reply-author">${escapeHtml(m.reply_sender_name || m.reply_sender_phone)}</span>
-          <span>${escapeHtml(truncate(m.reply_content, 60))}</span>
-        </div>` : ''}
-        <div class="bubble-text">${showDeleted ? deletedText : escapeHtml(m.content)}</div>
-        <div class="bubble-meta"><span>${formatTime(m.created_at)}</span>${failed?'<span class="tick failed">failed</span>':(pending?'<span>sending…</span>':'')}
-          ${mine && failed ? `<button class="retry-link" data-retry-group="${escapeAttr(m.tempmsgId||'')}" data-group="${escapeAttr(g.id)}">retry</button>` : ''}
-          ${pinned ? `<span class="tick" style="color:var(--accent);margin-left:4px;">📌 pinned</span>` : ''}
-        </div>
-      </div>
-      ${!mine ? menu : ''}
-    </div>`;
-  }).join('');
-}
-
-function bindChatPane(){
-  const msgsEl = document.getElementById('messagesEl');
-  if(msgsEl){
-    if(state.stickToBottom) msgsEl.scrollTop = msgsEl.scrollHeight;
-    msgsEl.onscroll = ()=>{
-      state.stickToBottom = (msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight) < 100;
-    };
-  }
-
-  document.getElementById('cancelReplyBtn')?.addEventListener('click', ()=>{
-    state.replyTo = null;
-    render();
-  });
-
-  document.querySelectorAll('.reply-preview').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const msgId = el.dataset.scrollTo;
-      const target = document.querySelector(`[data-msg-id="${msgId}"]`);
-      if(target){
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        target.style.background = 'rgba(226,162,59,0.1)';
-        setTimeout(()=> target.style.background = '', 2000);
-      }
-    });
-  });
-
-  const pinMoreBtn = document.getElementById('pinMoreBtn');
-  if(pinMoreBtn){
-    pinMoreBtn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      state.pinDropdownOpen = !state.pinDropdownOpen;
-      render();
-    });
-  }
-
-  document.addEventListener('click', ()=>{
-    if(state.pinDropdownOpen){
-      state.pinDropdownOpen = false;
-      render();
-    }
-  });
-
-  document.querySelectorAll('[data-toggle-menu]').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const id = btn.dataset.toggleMenu;
-      const menu = document.getElementById('menu-' + id);
-      if(menu){
-        document.querySelectorAll('.action-menu').forEach(m => { if(m.id !== 'menu-'+id) m.classList.remove('open'); });
-        menu.classList.toggle('open');
-      }
-    });
-  });
-
-  document.addEventListener('click', ()=>{
-    document.querySelectorAll('.action-menu').forEach(m => m.classList.remove('open'));
-  }, { once:true });
-
-  document.querySelectorAll('[data-mark-seen]').forEach(b=>b.addEventListener('click', ()=>{
-    markSeen(b.dataset.markSeen, b.dataset.peer);
-  }));
-
-  document.querySelectorAll('[data-reply]').forEach(b=>b.addEventListener('click', ()=>{
-    const msgId = b.dataset.reply;
-    const peer = b.dataset.peer;
-    const msgs = state.dmMessagesByPhone[peer] || [];
-    const m = msgs.find(x=>String(x.id)===String(msgId));
-    if(m){
-      state.replyTo = { id: m.id, content: m.content, sender_phone: m.sender_phone };
-      render();
-      document.querySelector('.composer textarea')?.focus();
-    }
-  }));
-
-  document.querySelectorAll('[data-delete-for-me]').forEach(b=>b.addEventListener('click', ()=>{
-    const msgId = b.dataset.deleteForMe;
-    const msgType = state.activeChat.type === 'dm' ? 'conversation' : 'group';
-    applyLocalDelete(msgId, 'me');
-    sendWs('deletforme', { msgId, sender_phone: state.me.phone, msgType });
-  }));
-
-  document.querySelectorAll('[data-delete-for-everyone]').forEach(b=>b.addEventListener('click', ()=>{
-    const msgId = b.dataset.deleteForEveryone;
-    const msgType = b.dataset.msgtype || 'conversation';
-    askConfirm({
-      title: 'Delete for everyone?',
-      body: 'This removes the message for every participant. This cannot be undone.',
-      confirmLabel: 'Delete',
-      danger: true,
-      onConfirm: ()=>{
-        applyLocalDelete(msgId, 'everyone');
-        sendWs('globaldelete', { msgId, sender_phone: state.me.phone, msgType });
-      }
-    });
-  }));
-
-  document.querySelectorAll('[data-unpin]').forEach(b=>b.addEventListener('click', ()=>{
-    const msgId = b.dataset.unpin;
-    unpinMessage(msgId);
-    if(state.pinDropdownOpen){
-      state.pinDropdownOpen = false;
-      render();
-    }
-  }));
-
-  document.querySelectorAll('[data-retry-dm]').forEach(b=>b.addEventListener('click', ()=>{
-    retryDmMessage(b.dataset.peer, b.dataset.retryDm);
-  }));
-  document.querySelectorAll('[data-retry-group]').forEach(b=>b.addEventListener('click', ()=>{
-    retryGroupMessage(b.dataset.group, b.dataset.retryGroup);
-  }));
-
-  document.getElementById('btnLoadGroupHistory')?.addEventListener('click', ()=> loadGroupMessages(state.activeChat.id));
-  document.getElementById('btnDeleteGroup')?.addEventListener('click', ()=>{
-    askConfirm({
-      title: 'Delete this group?',
-      body: 'This permanently deletes the group and its messages for everyone. This cannot be undone.',
-      confirmLabel: 'Delete group',
-      danger: true,
-      onConfirm: ()=>{
-        const gid = state.activeChat.id;
-        sendWs('deletegroup', { roomId: gid, sender_phone: state.me.phone });
-        delete state.groups[gid];
-        state.activeChat = null;
-        render();
-      }
-    });
-  });
-  document.getElementById('btnToggleGroupSettings')?.addEventListener('click', ()=>{ state.groupSettingsOpen = !state.groupSettingsOpen; render(); });
-
-  document.getElementById('addMemberForm')?.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const phone = new FormData(e.target).get('phone').trim();
-    if(phone){ addMember(state.activeChat.id, phone); e.target.reset(); }
-  });
-  document.querySelectorAll('[data-remove-member]').forEach(b=>b.addEventListener('click', ()=>{
-    removeMember(state.activeChat.id, b.dataset.removeMember);
-  }));
-  document.getElementById('leaveGroupForm')?.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const newAdmin = new FormData(e.target).get('newAdmin');
-    leaveGroup(state.activeChat.id, newAdmin || null);
-  });
-  document.querySelectorAll('[data-pin]').forEach(b=>b.addEventListener('click', ()=> pinMessage(b.dataset.pin)));
-  document.getElementById('btnUnpin')?.addEventListener('click', ()=> unpinMessage(document.getElementById('btnUnpin').dataset.msg));
-  document.querySelectorAll('[data-unpin]').forEach(b=>b.addEventListener('click', ()=> unpinMessage(b.dataset.unpin)));
-
-  const form = document.getElementById('composerForm');
-  if(form){
-    const ta = form.querySelector('textarea');
-    ta.addEventListener('keydown', (e)=>{
-      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); form.requestSubmit(); }
-    });
-    ta.addEventListener('input', ()=>{
-      if(state.activeChat.type !== 'dm') return;
-      const now = Date.now();
-      if(now - lastTypingSentAt > 1500){
-        sendWs('typing', { reciever_phonenum: state.activeChat.phone, sender_phone: state.me.phone });
-        lastTypingSentAt = now;
-      }
-    });
-    form.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const content = new FormData(form).get('content').trim();
-      if(!content) return;
-      state.stickToBottom = true;
-      const replyTo = state.replyTo ? state.replyTo.id : null;
-      if(state.activeChat.type === 'dm') sendDmMessage(state.activeChat.phone, content, replyTo);
-      else sendGroupMessage(state.activeChat.id, content, replyTo);
-      state.replyTo = null;
-      ta.value=''; ta.focus();
-      render();
-    });
-  }
-}
-
-function findMessageById(msgId){
-  for(const peer in state.dmMessagesByPhone){
-    const m = state.dmMessagesByPhone[peer].find(x=>String(x.id)===String(msgId));
-    if(m) return m;
-  }
-  for(const gid in state.groups){
-    const list = state.groups[gid].messages || [];
-    const m = list.find(x=>String(x.id)===String(msgId));
-    if(m) return m;
-  }
-  return null;
-}
-
-function applyLocalDelete(msgId, mode){
-  const m = findMessageById(msgId);
-  if(m){ m.visibility = mode==='me' ? 'all_except_sender' : 'none'; render(); }
-}
-
-function sendDmMessage(peer, content, replyTo){
-  const tempid = newTempId('dm');
-  const optimistic = { id:null, tempid, sender_phone: state.me.phone, receiver_phone: peer, content, created_at: new Date().toISOString(), status:'sending', _pending:true, visibility:'all', is_pinned:false, reply_to: replyTo || null };
-  if(replyTo){
-    const list = state.dmMessagesByPhone[peer] || [];
-    const original = list.find(x=>String(x.id)===String(replyTo));
-    if(original){
-      optimistic.reply_content = original.content;
-      optimistic.reply_sender_phone = original.sender_phone;
-      optimistic.reply_sender_name = original.sender_name || original.sender_phone;
-    }
-  }
-  if(!state.dmMessagesByPhone[peer]) state.dmMessagesByPhone[peer] = [];
-  state.dmMessagesByPhone[peer].push(optimistic);
-  if(!state.dmMeta[peer]) state.dmMeta[peer] = { conversationId:null };
-  render();
-  const sent = sendWs('chat', { sender_phonenum: state.me.phone, reciever_phonenum: peer, content, tempid, reply_to: replyTo || null });
-  if(!sent){ optimistic._pending = false; optimistic._failed = true; render(); }
-}
-
-function retryDmMessage(peer, tempid){
-  const list = state.dmMessagesByPhone[peer] || [];
-  const m = list.find(x=>x.tempid===tempid);
-  if(!m) return;
-  m._pending = true; m._failed = false; render();
-  const sent = sendWs('chat', { sender_phonenum: state.me.phone, reciever_phonenum: peer, content: m.content, tempid, reply_to: m.reply_to || null });
-  if(!sent){ m._pending = false; m._failed = true; render(); }
-}
-
-function sendGroupMessage(groupId, content, replyTo){
-  const g = state.groups[groupId]; if(!g) return;
-  const tempmsgId = newTempId('grp');
-  const optimistic = { id:null, tempmsgId, sender_phone: state.me.phone, group_id: groupId, content, created_at: new Date().toISOString(), _pending:true, visibility:'all', is_pinned:false, reply_to: replyTo || null };
-  if(replyTo){
-    const list = g.messages || [];
-    const original = list.find(x=>String(x.id)===String(replyTo));
-    if(original){
-      optimistic.reply_content = original.content;
-      optimistic.reply_sender_phone = original.sender_phone;
-      optimistic.reply_sender_name = original.sender_name || original.sender_phone;
-    }
-  }
-  g.messages = g.messages || [];
-  g.messages.push(optimistic);
-  render();
-  const sent = sendWs('sendtoroom', { roomId: groupId, tempmsgId, sender_phone: state.me.phone, message: content, reply_to: replyTo || null });
-  if(!sent){ optimistic._pending = false; optimistic._failed = true; render(); }
-}
-
-function retryGroupMessage(groupId, tempmsgId){
-  const g = state.groups[groupId]; if(!g) return;
-  const m = (g.messages||[]).find(x=>x.tempmsgId===tempmsgId);
-  if(!m) return;
-  m._pending = true; m._failed = false; render();
-  const sent = sendWs('sendtoroom', { roomId: groupId, tempmsgId, sender_phone: state.me.phone, message: m.content, reply_to: m.reply_to || null });
-  if(!sent){ m._pending = false; m._failed = true; render(); }
-}
-
-function markSeen(messageId, peer){
-  sendWs('seen', { messageId, rec_phone: peer });
-  const list = state.dmMessagesByPhone[peer] || [];
-  const m = list.find(x=>String(x.id)===String(messageId));
-  if(m){ m.status = 'seen'; render(); }
-}
-
-function createRoom(name){
-  const tempid = newTempId('room');
-  state.groups[tempid] = { id: tempid, group_name: name, admin_phone: state.me.phone, participants: new Set([state.me.phone]), messages: [], pinned: null, _pending: true };
-  state._pendingRoomName = state._pendingRoomName || {};
-  state._pendingRoomName[tempid] = name;
-  render();
-  sendWs('create-room', { sender_phone: state.me.phone, group_name: name, tempid });
-}
-
-function addMember(groupId, phone){
-  const g = state.groups[groupId];
-  if(g && !g.participants.has(phone)){
-    g.participants.add(phone);
-    state.pendingAdd = { groupId, phone };
-    render();
-  }
-  sendWs('addtoroom', { roomId: groupId, receiver_phone: phone, sender_phone: state.me.phone });
-}
-
-function removeMember(groupId, phone){
-  askConfirm({
-    title: 'Remove member?',
-    body: phone + ' will be removed from the group.',
-    confirmLabel: 'Remove',
-    danger: true,
-    onConfirm: ()=>{
-      const g = state.groups[groupId];
-      if(g){
-        g.participants.delete(phone);
-        state.pendingRemove = { groupId, phone };
-        render();
-      }
-      sendWs('removeuser', { roomId: groupId, receiver_phone: phone });
-    }
-  });
-}
-
-function leaveGroup(groupId, newAdmin){
-  askConfirm({
-    title: 'Leave group?',
-    body: 'You will stop receiving messages from this group.',
-    confirmLabel: 'Leave',
-    danger: true,
-    onConfirm: ()=>{
-      sendWs('leaveroom', { sender_phone: state.me.phone, roomId: groupId, newAdmin: newAdmin || undefined });
-      delete state.groups[groupId];
-      if(state.activeChat?.type==='group' && state.activeChat.id===groupId) state.activeChat = null;
-      render();
-    }
-  });
-}
-
-function pinMessage(msgId){
-  if(state.activeChat?.type === 'group'){
-    const g = state.groups[state.activeChat.id];
-    const m = (g?.messages||[]).find(x=>String(x.id)===String(msgId));
-    if(g && m){ m.is_pinned = true; m.pinned_at = new Date().toISOString(); m.pinned_by = state.me.phone; render(); }
-  }
-  sendWs('pinmsg', { msgId, sender_phone: state.me.phone });
-}
-
-function unpinMessage(msgId){
-  if(state.activeChat?.type === 'group'){
-    const g = state.groups[state.activeChat.id];
-    const m = (g?.messages||[]).find(x=>String(x.id)===String(msgId));
-    if(g && m){ m.is_pinned = false; m.pinned_at = null; m.pinned_by = null; render(); }
-  }
-  sendWs('unpin', { msgId, sender_phone: state.me.phone });
-}
-
-function connectWs(){
-  if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
-  if(state.ws) try{ state.ws.close(); }catch(e){}
-  state.wsStatus = 'connecting'; render();
-  try{
-    const socket = new WebSocket(state.wsUrl);
-    state.ws = socket;
-    socket.addEventListener('open', ()=>{
-      reconnectAttempts = 0;
-      state.wsStatus='up';
-      sendWs('auth', state.token);
-      render();
-    });
-    socket.addEventListener('close', ()=>{
-      state.wsStatus='down'; render();
-      if(state.token){
-        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 15000);
-        reconnectAttempts++;
-        reconnectTimer = setTimeout(connectWs, delay);
-      }
-    });
-    socket.addEventListener('message', (ev)=> handleWsMessage(ev.data));
-  }catch(err){
-    state.wsStatus='down'; render();
-  }
-}
-
-function sendWs(event, data){
-  if(!state.ws || state.wsStatus !== 'up'){
-    toast('Not connected — reconnecting…', 'err');
-    return false;
-  }
-  state.ws.send(JSON.stringify({ event, data }));
-  return true;
-}
-
-function handleWsMessage(raw){
-  let msg;
-  try{ msg = JSON.parse(raw); }
-  catch(e){ if(raw==='connected') toast('WebSocket connected.', 'info'); return; }
-
-  const ev = (msg.event || '').trim();
-
   switch(ev){
-    case 'group-data': {
-      const rows = Array.isArray(msg.message) ? msg.message : [];
-      rows.forEach(r=>{
-        const existing = state.groups[r.id];
-        state.groups[r.id] = {
-          id: r.id, group_name: r.group_name, admin_phone: r.admin_phone,
-          participants: new Set(r.participants||[]),
-          messages: existing?.messages || [],
-        };
-      });
-      render();
-      break;
-    }
-    case 'presence-list': {
-      (msg.contacts||[]).forEach(c=>{ if(c && c.phone) state.presence[c.phone] = c.status; });
-      render();
-      break;
-    }
-    case 'presence': {
-      if(msg.phone){ state.presence[msg.phone] = msg.status; render(); }
-      break;
-    }
-    case 'chat': {
-      const message = msg.messageResult || msg.content;
-      if(message){
-        const peer = message.sender_phone === state.me.phone ? message.receiver_phone : message.sender_phone;
-        if(!state.dmMessagesByPhone[peer]) state.dmMessagesByPhone[peer] = [];
-        state.dmMessagesByPhone[peer].push(message);
-        if(!state.dmMeta[peer]) state.dmMeta[peer] = { conversationId: message.conversation_id || null };
-        if(message.conversation_id) state.dmMeta[peer].conversationId = message.conversation_id;
-        if(!(state.activeChat?.type==='dm' && state.activeChat.phone===peer)) toast(peer+': '+truncate(message.content,60), 'info');
-      }
-      render();
-      break;
-    }
-    case 'typing': {
-      const peer = msg.sender_phone;
-      if(peer){
-        state.typingFrom[peer] = true; render();
-        clearTimeout(state._typingTimers?.[peer]);
-        state._typingTimers = state._typingTimers || {};
-        state._typingTimers[peer] = setTimeout(()=>{ delete state.typingFrom[peer]; render(); }, 2500);
-      }
-      break;
-    }
-    case 'seen': {
-      Object.values(state.dmMessagesByPhone).forEach(list=>{
-        const m = list.find(x=>String(x.id)===String(msg.messageId));
-        if(m) m.status = 'seen';
-      });
-      render();
-      break;
-    }
-    case 'group message recieved': {
-      const m = msg.message;
-      if(m && state.groups[m.group_id]){
-        state.groups[m.group_id].messages = state.groups[m.group_id].messages || [];
-        state.groups[m.group_id].messages.push(m);
-        if(!(state.activeChat?.type==='group' && state.activeChat.id===m.group_id)) toast('New message in group', 'info');
-      }
-      render();
-      break;
-    }
-    case 'added to a room': toast('Added to group "'+msg.groupName+'"', 'good'); break;
-    case 'user added': state.pendingAdd = null; toast('Member added.', 'good'); break;
-    case 'unathorized action': {
-      if(state.pendingAdd){
-        const g = state.groups[state.pendingAdd.groupId];
-        if(g) g.participants.delete(state.pendingAdd.phone);
-        state.pendingAdd = null;
-      }
-      toast(msg.message || 'Not authorized.', 'err');
-      render();
-      break;
-    }
-    case 'invalid room creds': toast(msg.message || 'Group does not exist.', 'err'); break;
-    case 'removed from the group': {
-      toast('You were removed from a group.', 'err');
-      if(msg.roomId){ delete state.groups[msg.roomId]; if(state.activeChat?.id===msg.roomId) state.activeChat=null; }
-      render();
-      break;
-    }
-    case 'user removal': toast(msg.message || 'Member removed.', 'good'); break;
-    case 'notify others': {
-      if(msg.roomId && state.groups[msg.roomId]){
-        state.groups[msg.roomId].messages = state.groups[msg.roomId].messages || [];
-        state.groups[msg.roomId].messages.push({ id:null, sender_phone:'system', sender_name:'System', content: msg.message, created_at: new Date().toISOString(), group_id: msg.roomId, system:true });
-        render();
-      }
-      break;
-    }
-    case 'removal success': toast(msg.message || 'Removed.', 'good'); state.pendingRemove = null; break;
-    case 'error while removal':
-    case 'not participant': {
-      if(state.pendingRemove){
-        const g = state.groups[state.pendingRemove.groupId];
-        if(g) g.participants.add(state.pendingRemove.phone);
-        state.pendingRemove = null;
-      }
-      toast(msg.message || 'Could not remove member.', 'err');
-      render();
-      break;
-    }
-    case 'left-group': toast(msg.message || 'You left the group.', 'good'); break;
-    case 'issue with group leaving': toast(msg.message || 'Could not leave group.', 'err'); break;
-    case 'error': toast(msg.err_msg || msg.message || 'Server error.', 'err'); break;
-    case 'auth': toast('Session expired — please log in again.', 'err'); logout(); break;
-    case 'pinned':
-    case 'unpinned': {
-      const info = msg.pinInfo;
-      if(info){
-        const gid = info.group_id;
-        if(gid && state.groups[gid]){
-          const list = state.groups[gid].messages || [];
-          const m = list.find(x=>String(x.id)===String(info.id));
-          if(m){ m.is_pinned = info.is_pinned; m.pinned_at = info.pinned_at; m.pinned_by = info.pinned_by; render(); }
-        } else {
-          const peer = info.sender_phone === state.me.phone ? info.receiver_phone : info.sender_phone;
-          const list = state.dmMessagesByPhone[peer] || [];
-          const m = list.find(x=>String(x.id)===String(info.id));
-          if(m){ m.is_pinned = info.is_pinned; m.pinned_at = info.pinned_at; m.pinned_by = info.pinned_by; render(); }
-        }
-      }
-      render();
-      break;
-    }
-    case 'message_global_deleted': {
-      const data = msg.data;
-      if(data){
-        if(data.msgType === 'group' && data.message.group_id && state.groups[data.message.group_id]){
-          const list = state.groups[data.message.group_id].messages || [];
-          const m = list.find(x=>String(x.id)===String(data.messageId));
-          if(m) Object.assign(m, data.message);
-        } else if(data.msgType === 'conversation'){
-          const peer = data.message.sender_phone === state.me.phone ? data.message.receiver_phone : data.message.sender_phone;
-          const list = state.dmMessagesByPhone[peer] || [];
-          const m = list.find(x=>String(x.id)===String(data.messageId));
-          if(m) Object.assign(m, data.message);
-        }
-        render();
-      }
-      break;
-    }
-    case 'global_delete_success': break;
-    case 'delete_for_me_success': break;
-    case 'group_deleted': {
-      toast('Group deleted by admin.', 'err');
-      const groupId = msg.data?.groupId;
-      if(groupId){ delete state.groups[groupId]; if(state.activeChat?.id===groupId) state.activeChat=null; }
-      render();
-      break;
-    }
-    default: {
-      if(msg.tempid && msg.correctid && msg.status){
-        Object.keys(state.dmMessagesByPhone).forEach(peer=>{
-          const list = state.dmMessagesByPhone[peer];
-          const m = list.find(x=>x.tempid===msg.tempid);
-          if(m){ m.id = msg.correctid; m.status = msg.status; m._pending = false; m._failed = false; }
-        });
-      } else if(msg.tempid && msg.correctid){
-        const name = state._pendingRoomName?.[msg.tempid];
-        if(msg.correctid){
-          const finalGroup = {
-            id: msg.correctid, group_name: name || ('Group '+msg.correctid), admin_phone: state.me.phone,
-            participants: new Set([state.me.phone]), messages: [],
-          };
-          delete state.groups[msg.tempid];
-          state.groups[msg.correctid] = state.groups[msg.correctid] || finalGroup;
-          if(state.activeChat?.type==='group' && state.activeChat.id===msg.tempid) state.activeChat = { type:'group', id: msg.correctid };
-          toast('Group "'+(name||msg.correctid)+'" created.', 'good');
-        }
-      } else if(msg.tempmsgId && msg.correctid){
-        Object.values(state.groups).forEach(g=>{
-          const list = g.messages || [];
-          const m = list.find(x=>x.tempmsgId===msg.tempmsgId);
-          if(m){ m.id = msg.correctid; m._pending = false; m._failed = false; }
-        });
-      } else if(msg.message && !ev){
-        toast(msg.message, msg.error ? 'err' : 'info');
-      }
-      render();
-    }
+    case 'group-data': loadGroups(msg.message); break;
+    case 'auth': toast(msg.message,'error'); logout(); break;
+    case 'chat': handleIncomingChat(msg); break;
+    case 'typing': handlePeerTyping(msg.convId,'dm'); break;
+    case 'group-typing': handlePeerTyping(msg.groupId,'group'); break;
+    case 'seen': updateTick(msg.messageId,'seen'); break;
+    case 'seen_batch_success': (msg.data.messageIds||[]).forEach(id=>updateTick(id,'seen')); break;
+    case 'added to a room': addLocalGroupStub(msg); break;
+    case 'user added': toast('Member added'); break;
+    case 'invalid room creds': case 'unathorized action': case 'not participant':
+    case 'error while removal': case 'issue with group leaving':
+      toast(msg.message,'error'); break;
+    case 'group message recieved': handleIncomingGroupMsg(msg.message); break;
+    case 'left-group': toast(msg.message); if(current&&current.type==='group') openEmpty(); break;
+    case 'notify others': systemNote(msg); break;
+    case 'removed from the group': GROUPS.delete(msg.roomId); if(current&&current.type==='group'&&current.id===msg.roomId) openEmpty(); renderSidebar(); toast('Removed from a group'); break;
+    case 'user removal': break;
+    case 'removal success': toast('Member removed'); break;
+    case 'group_deleted': case 'delete_success': handleGroupDeleted(msg.data); break;
+    case 'pinned': applyPin(msg.pinInfo,true); break;
+    case 'unpinned': applyPin(msg.pinInfo,false); break;
+    case 'message_global_deleted': case 'global_delete_success': applyGlobalDelete(msg.data); break;
+    case 'reciever status': setPeerStatus(msg.status); break;
+    case 'active status': handlePushedStatus(msg.user,msg.status); break;
+    case 'error': toast(msg.message,'error'); break;
   }
 }
 
-async function httpCall(method, path, body, authed){
-  const url = state.httpBase.replace(/\/$/,'') + path;
-  const headers = { 'Content-Type': 'application/json' };
-  if(authed && state.token) headers['token'] = state.token;
-  try{
-    const res = await fetch(url, { method, headers, body: body!==undefined ? JSON.stringify(body) : undefined });
-    const text = await res.text();
-    let data = null;
-    try{ data = text ? JSON.parse(text) : null; }catch(e){}
-    return { ok: res.ok, status: res.status, data, raw: text };
-  }catch(err){
-    return { ok:false, status:0, data:null, raw: String(err) };
+function handleAck(msg){
+  const p=pending.get(msg.tempid);
+  if(!p) return;
+  pending.delete(msg.tempid);
+  if(p.type==='chat'||p.type==='group'){
+    if(msg.correctid){p.el.dataset.id=msg.correctid; setTick(p.el,msg.status||'sent');}
+    if(p.type==='chat' && !CONVOS.get(p.peer).id) refreshConversations();
+  } else if(p.type==='createroom'){
+    if(msg.correctid){
+      GROUPS.set(String(msg.correctid),{id:msg.correctid,name:p.name,admin:ME.phone,participants:new Set([ME.phone]),messages:[],unread:0,lastAt:Date.now(),pinned:null});
+      renderSidebar(); openGroup(String(msg.correctid));
+    }
+  }
+}
+async function refreshConversations(){
+  const {ok,data}=await api('/myconversation');
+  if(ok && Array.isArray(data)) data.forEach(row=>{
+    const peer=row.user1_phone===ME.phone?row.user2_phone:row.user1_phone;
+    const c=CONVOS.get(peer); if(c && !c.id) c.id=row.id;
+  });
+}
+
+/* ---------- groups bootstrap ---------- */
+function loadGroups(rows){
+  (rows||[]).forEach(g=>{
+    const id=String(g.id);
+    if(!GROUPS.has(id)) GROUPS.set(id,{id,name:g.group_name,admin:g.admin_phone,participants:new Set(g.participants||[]),messages:[],unread:0,lastAt:g.created_at,pinned:null});
+  });
+  renderSidebar();
+}
+function addLocalGroupStub(msg){
+  toast('Added to "'+msg.groupName+'"');
+  refreshGroupData();
+}
+async function refreshGroupData(){ wsSend({event:'auth',data:TOKEN}); }
+
+/* ---------- sidebar ---------- */
+function renderSidebar(){
+  const q=$('#searchBox').value.trim().toLowerCase();
+  const items=[];
+  CONVOS.forEach(c=>items.push({kind:'dm',key:c.peer,label:c.name||c.peer,sub:c.lastMsg||'',at:c.lastAt||0,unread:c.unread,online:c.status==='online'}));
+  GROUPS.forEach(g=>items.push({kind:'group',key:g.id,label:g.name,sub:g.lastMsg||(g.participants.size+' members'),at:g.lastAt||0,unread:g.unread}));
+  items.sort((a,b)=>new Date(b.at)-new Date(a.at));
+  const list=$('#convList'); list.innerHTML='';
+  items.filter(i=>i.label.toLowerCase().includes(q)).forEach(i=>{
+    const el=document.createElement('div');
+    el.className='conv-item'+(current && ((i.kind==='dm'&&current.type==='dm'&&current.peer===i.key)||(i.kind==='group'&&current.type==='group'&&current.id===i.key))?' active':'');
+    const presenceDot=i.kind==='dm'?`<span class="presence-dot${i.online?' on':''}"></span>`:'';
+    el.innerHTML=`<div class="avatar">${esc((i.label||'?')[0]).toUpperCase()}${presenceDot}</div>
+      <div class="conv-meta"><div class="conv-name">${esc(i.label)}</div><div class="conv-sub">${esc(i.sub)}</div></div>
+      ${i.unread?`<span class="badge">${i.unread}</span>`:''}`;
+    el.onclick=()=> i.kind==='dm'?openDM(i.key):openGroup(i.key);
+    list.appendChild(el);
+  });
+}
+$('#searchBox').oninput=renderSidebar;
+
+/* ---------- opening a conversation ---------- */
+function openEmpty(){
+  syncSubscription(null);
+  current=null; $('#emptyState').hidden=false; $('#chatView').hidden=true; $('#app').classList.remove('show-chat');
+}
+async function openDM(peer){
+  current={type:'dm',peer};
+  syncSubscription(peer);
+  $('#app').classList.add('show-chat');
+  let c=CONVOS.get(peer); if(!c){c={peer,id:null,messages:[],unread:0,lastAt:Date.now(),name:null,status:'offline'}; CONVOS.set(peer,c);}
+  c.unread=0;
+  showChatShell(peer,c.status==='online'?'online':'offline');
+  queryActiveStatus(peer);
+  renderPinned(c.pinned);
+  if(c.id && c.messages.length===0){
+    const {ok,data}=await api('/getmessages',{conversationId:c.id});
+    if(ok && data.messages) c.messages=data.messages;
+  }
+  renderMessages(c.messages,'dm');
+  renderSidebar();
+}
+async function openGroup(id){
+  current={type:'group',id};
+  syncSubscription(null);
+  $('#app').classList.add('show-chat');
+  const g=GROUPS.get(id); g.unread=0;
+  showChatShell(g.name,g.participants.size+' members');
+  renderPinned(g.pinned);
+  if(g.messages.length===0){
+    const {ok,data}=await api('/getgroupmessages',{groupId:isNaN(id)?id:Number(id)});
+    if(ok && data.messages) g.messages=data.messages;
+  }
+  renderMessages(g.messages,'group');
+  renderSidebar();
+}
+function showChatShell(title,sub){
+  $('#emptyState').hidden=true; $('#chatView').hidden=false;
+  $('#peerName').textContent=title; $('#peerStatus').textContent=sub;
+  $('#typingRow').hidden=true; hideReply();
+}
+function setPeerStatus(status){
+  if(current&&current.type==='dm'){
+    $('#peerStatus').textContent=status==='online'?'online':'offline';
+    const c=CONVOS.get(current.peer); if(c){c.status=status; renderSidebar();}
+  }
+}
+function queryActiveStatus(peer){ wsSend({event:'active-status',data:{rec_phone:peer}}); }
+
+/* ---------- live presence (pub/sub) ---------- */
+function syncSubscription(peer){
+  // moves our live-presence subscription from whatever peer we were watching to the new one
+  if(subscribedPeer && subscribedPeer!==peer) unsubscribeStatus(subscribedPeer);
+  if(peer && peer!==subscribedPeer) subscribeStatus(peer);
+  subscribedPeer=peer||null;
+}
+function subscribeStatus(peer){ wsSend({event:'subscribe',data:{rec_phone:peer}}); }
+function unsubscribeStatus(peer){ wsSend({event:'unsubscribe',data:{rec_phone:peer}}); }
+function handlePushedStatus(user,status){
+  if(!user) return;
+  const c=CONVOS.get(user);
+  if(c){ c.status=status; renderSidebar(); }
+  if(current && current.type==='dm' && current.peer===user){
+    $('#peerStatus').textContent=status==='online'?'online':'offline';
   }
 }
 
-function toast(text, kind){
-  const wrap = document.getElementById('toasts');
-  const el = document.createElement('div');
-  el.className = 'toast' + (kind==='err' ? ' err' : (kind==='info' ? ' info' : ''));
-  el.textContent = text;
-  wrap.appendChild(el);
-  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .25s'; setTimeout(()=>el.remove(), 260); }, 3400);
+$('#backBtn').onclick=()=>{$('#app').classList.remove('show-chat');};
+
+/* ---------- messages render ---------- */
+function bubbleHTML(m,mine,pinnedId){
+  const status=m.status||'sent';
+  const tickHTML=mine?`<span class="tick ${status==='seen'?'seen':''}">${status==='seen'?'✓✓':(status==='delivered'?'✓✓':'✓')}</span>`:'';
+  const replyHTML=m.reply_content?`<div class="reply-quote"><b>${esc(m.reply_sender_name||m.reply_sender_phone||'')}</b><br>${esc((m.reply_content||'').slice(0,80))}</div>`:'';
+  const deleted=m.visibility==='none';
+  const body=deleted?'This message was deleted':esc(m.content);
+  return `<div class="bubble">${replyHTML}${body}</div>
+    <div class="meta-row">${m.is_pinned?'<span class="pin-flag">📌</span>':''}<span>${fmtTime(m.created_at)}</span>${tickHTML}</div>`;
+}
+function renderMessages(list,kind){
+  const box=$('#messages'); box.innerHTML='';
+  if(seenObserver){seenObserver.disconnect();}
+  seenObserver=new IntersectionObserver(onSeenIntersect,{root:box,threshold:.6});
+  let lastDay='';
+  list.forEach(m=>{
+    const day=new Date(m.created_at).toDateString();
+    if(day!==lastDay){lastDay=day; const sep=document.createElement('div'); sep.className='day-sep'; sep.textContent=day; box.appendChild(sep);}
+    box.appendChild(renderOneMessage(m,kind));
+  });
+  box.scrollTop=box.scrollHeight;
+}
+function renderOneMessage(m,kind){
+  const mine=m.sender_phone===ME.phone;
+  const el=document.createElement('div');
+  el.className='msg '+(mine?'mine':'theirs')+(m.visibility==='none'?' deleted':'');
+  el.dataset.id=m.id; el.dataset.mine=mine?'1':'';
+  const senderLabel=(!mine&&kind==='group')?`<div class="sender">${esc(m.sender_name||nameCache.get(m.sender_phone)||m.sender_phone)}</div>`:'';
+  el.innerHTML=`${senderLabel}<button class="kebab">⋯</button>${bubbleHTML(m,mine)}`;
+  el.querySelector('.kebab').onclick=ev=>{ev.stopPropagation(); openCtxMenu(ev.currentTarget,m,kind);};
+  if(!mine && m.visibility!=='none' && m.status!=='seen') seenObserver.observe(el);
+  return el;
+}
+function appendMessage(m,kind){
+  const box=$('#messages');
+  box.appendChild(renderOneMessage(m,kind));
+  box.scrollTop=box.scrollHeight;
+}
+function setTick(el,status){ const t=el.querySelector('.tick'); if(t){t.textContent=status==='seen'?'✓✓':'✓✓'; t.classList.toggle('seen',status==='seen');} }
+function updateTick(id,status){
+  const el=document.querySelector(`.msg[data-id="${id}"]`);
+  if(el) setTick(el,status);
+  [...CONVOS.values(),...GROUPS.values()].forEach(c=>{const m=c.messages.find(x=>String(x.id)===String(id)); if(m) m.status=status;});
 }
 
-function initials(s){ if(!s) return '?'; const parts = String(s).replace(/[^a-zA-Z0-9 ]/g,' ').trim().split(/\s+/); if(parts.length===1) return parts[0].slice(0,2).toUpperCase(); return (parts[0][0]+parts[1][0]).toUpperCase(); }
-function truncate(s,n){ if(!s) return ''; s=String(s); return s.length>n ? s.slice(0,n-1)+'…' : s; }
-function formatTime(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
-function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function escapeAttr(s){ return escapeHtml(s); }
-function escapeAttrText(s){ return escapeHtml(s); }
+/* ---------- seen-on-scroll ---------- */
+function onSeenIntersect(entries){
+  entries.forEach(en=>{
+    if(en.isIntersecting){
+      pendingSeen.add(en.target.dataset.id);
+      seenObserver.unobserve(en.target);
+    }
+  });
+  clearTimeout(seenFlushTimer);
+  seenFlushTimer=setTimeout(flushSeen,500);
+}
+function flushSeen(){
+  if(pendingSeen.size===0 || document.visibilityState!=='visible' || !current) return;
+  const ids=[...pendingSeen]; pendingSeen.clear();
+  wsSend({event:'seenbatch',data:{msgIds:ids.map(i=>isNaN(i)?i:Number(i)),type:current.type==='group'?'group':'conversation'}});
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') flushSeen(); });
 
-render();
+/* ---------- sending ---------- */
+const msgInput=$('#msgInput');
+msgInput.addEventListener('input',()=>{
+  msgInput.style.height='auto'; msgInput.style.height=Math.min(msgInput.scrollHeight,140)+'px';
+  sendTypingDebounced();
+});
+msgInput.addEventListener('keydown',e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('#composer').requestSubmit(); }});
+function sendTypingDebounced(){
+  if(!current) return;
+  const now=Date.now();
+  clearTimeout(typingStopTimer);
+  typingStopTimer=setTimeout(()=>{typingLastSent=0;},2500);
+  if(now-typingLastSent<1500) return;
+  typingLastSent=now;
+  if(current.type==='dm'){
+    const c=CONVOS.get(current.peer);
+    wsSend({event:'typing',data:{reciever_phonenum:current.peer,convId:c.id,sender_phone:ME.phone}});
+  } else {
+    wsSend({event:'grouptyping',data:{groupId:current.id,sender_phone:ME.phone}});
+  }
+}
+function handlePeerTyping(key,kind){
+  if(!current) return;
+  const match=(kind==='dm' && current.type==='dm' && CONVOS.get(current.peer).id===key)||(kind==='group' && current.type==='group' && String(current.id)===String(key));
+  if(!match) return;
+  $('#typingRow').hidden=false; $('#typingRow').textContent='typing…';
+  clearTimeout(peerTypingTimer);
+  peerTypingTimer=setTimeout(()=>{$('#typingRow').hidden=true;},2800);
+}
+
+$('#composer').onsubmit=e=>{
+  e.preventDefault();
+  const text=msgInput.value.trim();
+  if(!text || !current) return;
+  const tempid='t'+Date.now()+Math.random().toString(36).slice(2,7);
+  const localMsg={id:tempid,sender_phone:ME.phone,content:text,created_at:new Date().toISOString(),status:'sending',reply_to:replyTo?replyTo.id:null,reply_content:replyTo?replyTo.text:null,reply_sender_name:replyTo?replyTo.name:null,visibility:'all'};
+  if(current.type==='dm'){
+    const c=CONVOS.get(current.peer);
+    appendMessage(localMsg,'dm'); c.messages.push(localMsg); c.lastMsg=text; c.lastAt=Date.now();
+    pending.set(tempid,{type:'chat',el:document.querySelector(`.msg[data-id="${tempid}"]`),peer:current.peer});
+    wsSend({event:'chat',data:{sender_phonenum:ME.phone,reciever_phonenum:current.peer,content:text,tempid,reply_to:replyTo?replyTo.id:null}});
+  } else {
+    const g=GROUPS.get(current.id);
+    appendMessage(localMsg,'group'); g.messages.push(localMsg); g.lastMsg=text; g.lastAt=Date.now();
+    pending.set(tempid,{type:'group',el:document.querySelector(`.msg[data-id="${tempid}"]`)});
+    wsSend({event:'sendtoroom',data:{roomId:isNaN(current.id)?current.id:Number(current.id),tempmsgId:tempid,sender_phone:ME.phone,message:text,reply_to:replyTo?replyTo.id:null}});
+  }
+  msgInput.value=''; msgInput.style.height='auto'; hideReply(); renderSidebar();
+};
+
+function handleIncomingChat(msg){
+  const m=msg.content||msg.messageResult; if(!m) return;
+  const peer=m.sender_phone;
+  let c=CONVOS.get(peer); if(!c){c={peer,id:m.conversation_id||null,messages:[],unread:0,lastAt:Date.now(),name:null,status:'offline'}; CONVOS.set(peer,c);}
+  if(m.conversation_id && !c.id) c.id=m.conversation_id;
+  c.messages.push(m); c.lastMsg=m.content; c.lastAt=m.created_at;
+  if(current && current.type==='dm' && current.peer===peer){ appendMessage(m,'dm'); }
+  else c.unread++;
+  renderSidebar();
+}
+function handleIncomingGroupMsg(m){
+  if(!m || !m.group_id) return;
+  const id=String(m.group_id);
+  const g=GROUPS.get(id); if(!g) return;
+  g.messages.push(m); g.lastMsg=m.content; g.lastAt=m.created_at;
+  if(current && current.type==='group' && current.id===id) appendMessage(m,'group');
+  else g.unread++;
+  renderSidebar();
+}
+function systemNote(msg){
+  if(current && current.type==='group' && String(current.id)===String(msg.roomId)) toast(msg.message);
+}
+
+/* ---------- reply ---------- */
+function setReply(m){
+  replyTo={id:m.id,text:m.content,name:m.sender_phone===ME.phone?'You':(m.sender_name||m.sender_phone)};
+  $('#replyBar').hidden=false; $('#replyLabel').textContent='Replying to '+replyTo.name; $('#replyText').textContent=replyTo.text;
+  msgInput.focus();
+}
+function hideReply(){replyTo=null; $('#replyBar').hidden=true;}
+$('#cancelReply').onclick=hideReply;
+
+/* ---------- context menu (pin/reply/delete) ---------- */
+function openCtxMenu(anchor,m,kind){
+  document.querySelectorAll('.ctx-menu').forEach(x=>x.remove());
+  const mine=m.sender_phone===ME.phone;
+  const menu=document.createElement('div'); menu.className='ctx-menu';
+  const rect=anchor.getBoundingClientRect();
+  menu.style.top=(rect.bottom+4)+'px'; menu.style.left=Math.max(8,rect.left-120)+'px';
+  const btns=[];
+  btns.push(['Reply',()=>setReply(m)]);
+  btns.push([m.is_pinned?'Unpin':'Pin',()=>togglePin(m,kind)]);
+  btns.push(['Delete for me',()=>deleteForMe(m)]);
+  if(mine) btns.push(['Delete for everyone',()=>deleteForEveryone(m,kind),true]);
+  btns.forEach(([label,fn,danger])=>{const b=document.createElement('button'); if(danger)b.className='danger'; b.textContent=label; b.onclick=()=>{fn(); menu.remove();}; menu.appendChild(b);});
+  document.body.appendChild(menu);
+  anchor.classList.add('open');
+  setTimeout(()=>document.addEventListener('click',function h(){menu.remove();anchor.classList.remove('open');document.removeEventListener('click',h);},{once:true}));
+}
+function togglePin(m,kind){
+  const willPin=!m.is_pinned;
+  wsSend({event:willPin?'pinmsg':'unpin',data:{msgId:m.id,sender_phone:ME.phone}});
+  m.is_pinned=willPin;
+  const store=kind==='dm'?CONVOS.get(current.peer):GROUPS.get(current.id);
+  store.pinned=willPin?m:null;
+  renderPinned(store.pinned);
+  const el=document.querySelector(`.msg[data-id="${m.id}"]`);
+  if(el) el.querySelector('.pin-flag')?.remove(), el.outerHTML=el.outerHTML;
+  refreshCurrentList();
+}
+function applyPin(info,pinned){
+  if(!info) return;
+  [...CONVOS.values(),...GROUPS.values()].forEach(c=>{
+    const m=c.messages.find(x=>String(x.id)===String(info.id));
+    if(m){m.is_pinned=pinned; if(pinned)c.pinned=m; else if(c.pinned&&c.pinned.id===m.id)c.pinned=null;}
+  });
+  if(current){const store=current.type==='dm'?CONVOS.get(current.peer):GROUPS.get(current.id); if(store) renderPinned(store.pinned);}
+  refreshCurrentList();
+}
+function renderPinned(m){
+  const bar=$('#pinnedBar');
+  if(!m){bar.hidden=true;return;}
+  bar.hidden=false; bar.innerHTML=`📌 <span>${esc(m.content)}</span>`;
+}
+function deleteForMe(m){
+  wsSend({event:'deletforme',data:{msgId:m.id,sender_phone:ME.phone}});
+  const el=document.querySelector(`.msg[data-id="${m.id}"]`); if(el) el.remove();
+}
+function deleteForEveryone(m,kind){
+  wsSend({event:'globaldelete',data:{msgId:m.id,sender_phone:ME.phone,msgType:kind}});
+}
+function applyGlobalDelete(data){
+  if(!data) return;
+  [...CONVOS.values(),...GROUPS.values()].forEach(c=>{
+    const m=c.messages.find(x=>String(x.id)===String(data.messageId));
+    if(m) m.visibility='none';
+  });
+  const el=document.querySelector(`.msg[data-id="${data.messageId}"]`);
+  if(el){el.classList.add('deleted'); const b=el.querySelector('.bubble'); if(b) b.textContent='This message was deleted';}
+}
+function refreshCurrentList(){
+  if(!current) return;
+  if(current.type==='dm') renderMessages(CONVOS.get(current.peer).messages,'dm');
+  else renderMessages(GROUPS.get(current.id).messages,'group');
+}
+
+/* ---------- new chat / new group ---------- */
+function openModal(html){
+  const ov=document.createElement('div'); ov.className='overlay'; ov.innerHTML=`<div class="modal">${html}</div>`;
+  ov.onclick=e=>{if(e.target===ov) ov.remove();};
+  document.body.appendChild(ov);
+  return ov;
+}
+$('#newBtn').onclick=()=>{
+  const ov=openModal(`<h2>Start something</h2>
+    <div class="modal-actions" style="justify-content:stretch;gap:10px;">
+      <button class="btn-primary" id="mkDm" style="flex:1;">New message</button>
+      <button class="btn-primary" id="mkGroup" style="flex:1;">New group</button>
+    </div>`);
+  ov.querySelector('#mkDm').onclick=()=>{ov.remove(); newDmModal();};
+  ov.querySelector('#mkGroup').onclick=()=>{ov.remove(); newGroupModal();};
+};
+function newDmModal(){
+  const ov=openModal(`<h2>New message</h2>
+    <div class="field"><label>Phone number</label><input id="dmPhone" placeholder="+91..."></div>
+    <div class="modal-actions"><button class="btn-ghost" id="cnl">Cancel</button><button class="btn-primary" id="go">Start</button></div>`);
+  ov.querySelector('#cnl').onclick=()=>ov.remove();
+  ov.querySelector('#go').onclick=()=>{
+    const phone=ov.querySelector('#dmPhone').value.trim();
+    if(!phone) return;
+    ov.remove(); openDM(phone);
+  };
+}
+function newGroupModal(){
+  const ov=openModal(`<h2>New group</h2>
+    <div class="field"><label>Group name</label><input id="grpName"></div>
+    <div class="modal-actions"><button class="btn-ghost" id="cnl">Cancel</button><button class="btn-primary" id="go">Create</button></div>`);
+  ov.querySelector('#cnl').onclick=()=>ov.remove();
+  ov.querySelector('#go').onclick=()=>{
+    const name=ov.querySelector('#grpName').value.trim(); if(!name) return;
+    const tempid='g'+Date.now();
+    pending.set(tempid,{type:'createroom',name});
+    wsSend({event:'create-room',data:{sender_phone:ME.phone,group_name:name,tempid}});
+    ov.remove();
+  };
+}
+
+/* ---------- group info panel ---------- */
+$('#infoBtn').onclick=()=>{
+  if(!current) return;
+  if(current.type==='dm') return;
+  const g=GROUPS.get(current.id);
+  const isAdmin=g.admin===ME.phone;
+  const rows=[...g.participants].map(p=>`<div class="participant-row"><span>${esc(p)}${p===g.admin?' (admin)':''}</span>${(isAdmin&&p!==ME.phone)?`<button data-p="${esc(p)}">Remove</button>`:''}</div>`).join('');
+  const ov=openModal(`<h2>${esc(g.name)}</h2>
+    ${rows}
+    <div class="field" style="margin-top:14px;"><label>Add participant (phone)</label><input id="addPhone"></div>
+    <div class="modal-actions"><button class="btn-ghost" id="addGo">Add</button></div>
+    <div class="danger-zone">
+      <button id="leaveGrp">Leave group</button>
+      ${isAdmin?'<button id="delGrp">Delete group</button>':''}
+    </div>`);
+  ov.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{
+    wsSend({event:'removeuser',data:{roomId:g.id,receiver_phone:b.dataset.p}});
+    ov.remove();
+  });
+  ov.querySelector('#addGo').onclick=()=>{
+    const ph=ov.querySelector('#addPhone').value.trim(); if(!ph) return;
+    wsSend({event:'addtoroom',data:{roomId:g.id,receiver_phone:ph,sender_phone:ME.phone}});
+    g.participants.add(ph); ov.remove(); renderSidebar();
+  };
+  ov.querySelector('#leaveGrp').onclick=()=>{
+    wsSend({event:'leaveroom',data:{sender_phone:ME.phone,roomId:g.id}});
+    GROUPS.delete(current.id); openEmpty(); renderSidebar(); ov.remove();
+  };
+  const delBtn=ov.querySelector('#delGrp');
+  if(delBtn) delBtn.onclick=()=>{
+    wsSend({event:'deletegroup',data:{roomId:g.id,sender_phone:ME.phone}});
+    ov.remove();
+  };
+};
+function handleGroupDeleted(data){
+  if(!data) return;
+  GROUPS.delete(String(data.groupId));
+  if(current && current.type==='group' && String(current.id)===String(data.groupId)) openEmpty();
+  renderSidebar(); toast('"'+data.groupName+'" was deleted');
+}
+function logout(){TOKEN=null; ME=null; subscribedPeer=null; if(ws) ws.close(); location.reload();}
 </script>
 </body>
 </html>
